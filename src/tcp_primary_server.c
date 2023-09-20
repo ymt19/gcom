@@ -1,12 +1,12 @@
-#include "../include/tcp_server.h"
+#include "../include/server.h"
 
-static void primary_srv_main(tcp_server_config *srv_config);
-static void print_primary_srv_config(tcp_server_config *srv_config);
+static void primary_srv_main(server_config *srv_config);
+static void print_primary_srv_config(server_config *srv_config);
 static void usage();
-static tcp_server_config *parse_srv_config(int argc, char *argv[]);
+static server_config *parse_srv_config(int argc, char *argv[]);
 
 
-static void primary_srv_main(tcp_server_config *srv_config)
+static void primary_srv_main(server_config *srv_config)
 {
     // lm起動
 
@@ -21,7 +21,7 @@ static void primary_srv_main(tcp_server_config *srv_config)
     // lm終了
 }
 
-static void print_primary_srv_config(tcp_server_config *srv_config)
+static void print_primary_srv_config(server_config *srv_config)
 {
     fprintf(stdout, "---------server_config---------\n");
     fprintf(stdout, "server id: %zu\n", srv_config->srv_id);
@@ -47,7 +47,7 @@ static void usage() {
     exit(0);
 }
 
-static tcp_server_config *parse_srv_config(int argc, char *argv[])
+static server_config *parse_srv_config(int argc, char *argv[])
 {
     // 0      1           2        3      4
     // <exec> <server ID> <ipaddr> <port> <duration>
@@ -109,7 +109,7 @@ static tcp_server_config *parse_srv_config(int argc, char *argv[])
         exit(0);
     }
 
-    tcp_server_config *srv_config = malloc(sizeof(tcp_server_config));
+    server_config *srv_config = malloc(sizeof(server_config));
     srv_config->srv_id = srv_id;
     strncpy(srv_config->ipaddr, ipaddr, strlen(ipaddr));
     srv_config->ipaddr[strlen(ipaddr)] = '\0';
@@ -133,7 +133,7 @@ static tcp_server_config *parse_srv_config(int argc, char *argv[])
 }
 
 int main(int argc, char *argv[]) {
-    tcp_server_config *srv_config = parse_srv_config(argc, argv);
+    server_config *srv_config = parse_srv_config(argc, argv);
     print_primary_srv_config(srv_config);
 
     primary_srv_main(srv_config);
