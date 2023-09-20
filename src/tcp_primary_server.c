@@ -63,7 +63,7 @@ static tcp_server_config *parse_srv_config(int argc, char *argv[])
 
     size_t srv_id = atoi(argv[1]);
     if (srv_id != 1) {
-        fprintf(stdout, "primary server ID should be 1.");
+        fprintf(stdout, "primary server ID should be 1.\n");
         exit(0);
     }
 
@@ -75,7 +75,7 @@ static tcp_server_config *parse_srv_config(int argc, char *argv[])
 
     size_t duration = atoi(argv[4]);
     if (duration < 1) {
-        fprintf(stdout, "duration should be greater than zero.");
+        fprintf(stdout, "duration should be greater than zero.\n");
         exit(0);
     }
 
