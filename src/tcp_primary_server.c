@@ -1,4 +1,6 @@
 #include "../include/server.h"
+#include "../include/background.h"
+#include "../include/time_manager.h"
 
 static void primary_srv_main(server_config_t *srv_config);
 static void print_primary_srv_config(server_config_t *srv_config);
@@ -8,17 +10,44 @@ static server_config_t *parse_srv_config(int argc, char *argv[]);
 
 static void primary_srv_main(server_config_t *srv_config)
 {
-    // lm起動
+    pthread_t client_thread[MAX_NUM_CLIENT_THREADS+1];
+    client_thread_info_t *client_thread_info_set;
 
-    // cm起動
+    /**** wal mamanger起動 ****/
 
-    // srv_config->system_start_timeのセット
+    /*************************/
+
+
+    /**** connection manager ****/
+
+    /****************************/
+
+    /***** background *****/
+    client_thread_info_set = malloc(sizeof(client_thread_info_t) * srv_config->num_threads);
+
+    // 起動時間の設定
+    srv_config->system_start_time = get_time();
 
     // client thread起動
+    for (int client_id = 1; client_id <= srv_config->num_threads; ++client_id)
+    {
+        client_thread_info_set[client_id].client_id = client_id;
+        client_thread_info_set[client_id].srv_config = srv_config;
+
+        pthread_create(&client_thread[client_id], NULL, (void *)client, (void *)&client_thread_info_set[client_id]);
+    }
+
+    for (int client_id = 1; client_id <= srv_config->num_threads; ++client_id)
+    {
+        pthread_join(client_thread[client_id], NULL);
+    }
+    free(client_thread_info_set);
+    /**********************/
 
     // cm終了
 
-    // lm終了
+
+    // walm終了
 }
 
 static void print_primary_srv_config(server_config_t *srv_config)
@@ -86,8 +115,8 @@ static server_config_t *parse_srv_config(int argc, char *argv[])
     }
 
     size_t num_threads = atoi(argv[6]);
-    if (num_threads < 1) {
-        fprintf(stdout, "valid threads number range: 1-[].\n");
+    if (num_threads < 1 || num_threads > MAX_NUM_CLIENT_THREADS) {
+        fprintf(stdout, "valid threads number range: 1-%d.\n", MAX_NUM_CLIENT_THREADS);
         exit(0);
     }
 
@@ -138,5 +167,6 @@ int main(int argc, char *argv[]) {
 
     primary_srv_main(srv_config);
 
+    free(srv_config);
     return 0;
 }
