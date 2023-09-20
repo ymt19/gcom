@@ -7,7 +7,7 @@
 // secondaryサーバ数の最大値
 #define MAX_NUM_SECONDARY_SERVERS  10
 
-struct server_config
+struct server_config_t
 {
     // primaryとsecandary
     size_t srv_id;
@@ -26,5 +26,5 @@ struct server_config
 
     double system_start_time;
 };
-typedef struct server_config server_config;
+typedef struct server_config_t server_config_t;
 
