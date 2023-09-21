@@ -26,6 +26,7 @@ struct server_config_t
     unsigned short srvs_port[MAX_NUM_SECONDARY_SERVERS+2]; // indexとIDが一致
 
     double system_start_time;
+    char finish_flag;
 };
 typedef struct server_config_t server_config_t;
 
