@@ -23,7 +23,7 @@ static void primary_srv_main(server_config_t *srv_config)
     /****************************/
 
     /***** background *****/
-    client_thread_info_set = malloc(sizeof(client_thread_info_t) * srv_config->num_threads);
+    client_thread_info_set = malloc(sizeof(client_thread_info_t) * (srv_config->num_threads+1));
 
     // 起動時間の設定
     srv_config->system_start_time = get_time();

@@ -1,5 +1,7 @@
 #include "../include/background.h"
 
+static void commit(size_t client_id, int cnt);
+
 void *client(client_thread_info_t *info)
 {
     size_t client_id = info->client_id;
@@ -9,7 +11,12 @@ void *client(client_thread_info_t *info)
     int cnt = 1;
     while (bench_finish_time > get_time())
     {
-        fprintf(stdout, "clinent id: %zu, count: %d\n", client_id, cnt++);
-        sleep(1);
+        commit(client_id, cnt++);
     }
+}
+
+static void commit(size_t client_id, int cnt)
+{
+    fprintf(stdout, "clinent id: %zu, count: %d\n", client_id, cnt);
+    sleep(1);
 }
