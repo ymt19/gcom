@@ -7,13 +7,13 @@ LDFLAGS             = -lpthread
 INCLUDE             = -I./include
 
 $(TCP_PRIMARY): tcp_primary_server.o tcp_connection_manager.o time_manager.o background.o
-	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) $(INCLUDE)
+	$(CC) -o bin/$@ $^ $(CFLAGS) $(LDFLAGS) $(INCLUDE)
 
 tcp_primary_server.o: src/tcp_primary_server.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -c $^
 
 $(TCP_SECONDARY): tcp_secondary_server.o tcp_connection_manager.o time_manager.o background.o
-	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) $(INCLUDE)
+	$(CC) -o bin/$@ $^ $(CFLAGS) $(LDFLAGS) $(INCLUDE)
 
 tcp_secondary_server.o: src/tcp_secondary_server.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -c $^
@@ -29,6 +29,6 @@ background.o: src/background.c
 
 
 clean:
-	rm -rf *.o *.out
+	rm -rf *.o *.out bin/*
 
 .PHONY: clean
