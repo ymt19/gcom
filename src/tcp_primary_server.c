@@ -1,7 +1,7 @@
-#include "../include/server.h"
-#include "../include/background.h"
-#include "../include/tcp_connection_manager.h"
-#include "../include/time_manager.h"
+#include "server.h"
+#include "background.h"
+#include "tcp_connection_manager.h"
+#include "time_manager.h"
 
 static void primary_srv_main(server_config_t *srv_config);
 static void print_primary_srv_config(server_config_t *srv_config);

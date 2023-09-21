@@ -2,8 +2,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../include/tcp_connection_manager.h"
-#include "../include/server.h"
+#include "tcp_connection_manager.h"
+#include "server.h"
 
 struct sender_worker_thread_info_t
 {

@@ -13,4 +13,4 @@ struct client_thread_info_t
 typedef struct client_thread_info_t client_thread_info_t;
 
 
-void *client(client_thread_info_t *info);
+void client(client_thread_info_t *info);

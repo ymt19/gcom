@@ -1,8 +1,8 @@
-#include "../include/background.h"
+#include "background.h"
 
 static void commit(size_t client_id, int cnt);
 
-void *client(client_thread_info_t *info)
+void client(client_thread_info_t *info)
 {
     size_t client_id = info->client_id;
     server_config_t *srv_config = info->srv_config;

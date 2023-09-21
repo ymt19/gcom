@@ -1,4 +1,4 @@
-#include "../include/time_manager.h"
+#include "time_manager.h"
 
 double get_time() {
     struct timeval tv;

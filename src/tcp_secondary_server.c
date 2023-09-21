@@ -1,4 +1,4 @@
-#include "../include/server.h"
+#include "server.h"
 
 static int secondary_srv_main(server_config_t *srv_config);
 static void print_secondary_srv_config(server_config_t *srv_config);

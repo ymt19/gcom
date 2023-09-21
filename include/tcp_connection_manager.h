@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../include/server.h"
+#include "server.h"
 
 struct sender_config_t
 {
