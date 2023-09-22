@@ -1,6 +1,6 @@
 #include "server.h"
+#include "tcp_connection_manager.h"
 
-static int secondary_srv_main(server_config_t *srv_config);
 static void print_secondary_srv_config(server_config_t *srv_config);
 static void usage();
 static server_config_t *parse_srv_config(int argc, char *argv[]);
