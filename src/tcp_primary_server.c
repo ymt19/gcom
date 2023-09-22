@@ -3,60 +3,9 @@
 #include "tcp_connection_manager.h"
 #include "time_manager.h"
 
-static void primary_srv_main(server_config_t *srv_config);
 static void print_primary_srv_config(server_config_t *srv_config);
 static void usage();
 static server_config_t *parse_srv_config(int argc, char *argv[]);
-
-static void primary_srv_main(server_config_t *srv_config)
-{
-    /**** wal mamanger起動 ****/
-
-    /*************************/
-
-
-    /**** connection manager ****/
-    pthread_t sender_thread;
-    sender_config_t *sender_config;
-
-    sender_config = malloc(sizeof(sender_config_t));
-    sender_config->srv_config = srv_config;
-
-    pthread_create(&sender_thread, NULL, (void *)sender, (void *)sender_config);
-    /****************************/
-
-    /***** background *****/
-    pthread_t client_thread[MAX_NUM_CLIENT_THREADS];
-    client_thread_info_t *client_thread_info_set;
-
-    client_thread_info_set = malloc(sizeof(client_thread_info_t) * (srv_config->num_threads+1));
-
-    // 起動時間の設定
-    sleep(1);
-    srv_config->system_start_time = get_time();
-
-    // client thread起動
-    for (int client_id = 0; client_id < srv_config->num_threads; ++client_id)
-    {
-        client_thread_info_set[client_id].client_id = client_id+1;
-        client_thread_info_set[client_id].srv_config = srv_config;
-
-        pthread_create(&client_thread[client_id], NULL, (void *)client, (void *)&client_thread_info_set[client_id]);
-    }
-
-    for (int client_id = 1; client_id <= srv_config->num_threads; ++client_id)
-    {
-        pthread_join(client_thread[client_id], NULL);
-    }
-    free(client_thread_info_set);
-    srv_config->finish_flag = 1;
-    /**********************/
-
-    // cm終了
-    pthread_join(sender_thread, NULL);
-
-    // walm終了
-}
 
 static void print_primary_srv_config(server_config_t *srv_config)
 {
@@ -158,7 +107,6 @@ static server_config_t *parse_srv_config(int argc, char *argv[])
     srv_config->send_log_size = send_log_size;
     srv_config->num_secondary_servers = num_secondary_servers;
     srv_config->num_servers = num_secondary_servers+1;
-    srv_config->finish_flag = 0;
 
     for (int id = 2; id <= srv_config->num_servers; ++id) {
         int srvs_ipaddr_index = 9 + (id-2)*2;
@@ -175,7 +123,17 @@ int main(int argc, char *argv[]) {
     server_config_t *srv_config = parse_srv_config(argc, argv);
     print_primary_srv_config(srv_config);
 
-    primary_srv_main(srv_config);
+    /**** log mamanger起動 ****/
+
+    /*************************/
+
+    /**** connection manager ****/
+    sender_main(srv_config);
+    /****************************/
+
+    /***** background *****/
+    background(srv_config);
+    /**********************/
 
     free(srv_config);
     return 0;
