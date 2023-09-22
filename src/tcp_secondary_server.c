@@ -5,20 +5,6 @@ static void print_secondary_srv_config(server_config_t *srv_config);
 static void usage();
 static server_config_t *parse_srv_config(int argc, char *argv[]);
 
-
-static int secondary_srv_main(server_config_t *srv_config)
-{
-    // lm起動
-
-    // cm起動
-
-    // srv_config->system_start_timeのセット
-
-    // cm終了
-
-    // lm終了
-}
-
 static void print_secondary_srv_config(server_config_t *srv_config)
 {
     fprintf(stdout, "---------server_config---------\n");
@@ -75,7 +61,10 @@ int main(int argc, char *argv[]) {
     server_config_t *srv_config = parse_srv_config(argc, argv);
     print_secondary_srv_config(srv_config);
 
-    secondary_srv_main(srv_config);
+    // log manager起動
+
+    // connection manager起動
+    reciever_main(srv_config);
 
     return 0;
 }
