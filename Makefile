@@ -2,7 +2,7 @@ TCP_PRIMARY         = tcp_primary
 TCP_SECONDARY		= tcp_secondary
 
 CC                  = gcc
-CFLAGS              = -g -Wall
+CFLAGS              = -g -Wall -g
 LDFLAGS             = -lpthread
 INCLUDE             = -I./include
 
