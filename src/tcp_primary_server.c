@@ -15,10 +15,10 @@ static void print_primary_srv_config(server_config_t *srv_config)
     fprintf(stdout, "port: %d\n", srv_config->port);
     fprintf(stdout, "run duration: %zu\n", srv_config->duration);
     fprintf(stdout, "traffic: %zu [ops/sec]\n", srv_config->iops);
-    fprintf(stdout, "client threads: %zu\n", srv_config->num_threads);
+    fprintf(stdout, "number of client threads: %zu\n", srv_config->num_threads);
     fprintf(stdout, "send log size: %zu [bytes]\n", srv_config->send_log_size);
-    fprintf(stdout, "secondary servers: %zu\n", srv_config->num_secondary_servers);
-    fprintf(stdout, "servers: %zu\n", srv_config->num_servers);
+    fprintf(stdout, "number of secondary servers: %zu\n", srv_config->num_secondary_servers);
+    fprintf(stdout, "number of servers: %zu\n", srv_config->num_servers);
     for (int id = 2; id <= srv_config->num_servers; ++id) {
         fprintf(stdout, "server id: %d, ip address: %s, port: %d\n", id, srv_config->srvs_ipaddr[id], srv_config->srvs_port[id]);
     }
