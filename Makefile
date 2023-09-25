@@ -9,22 +9,28 @@ INCLUDE             = -I./include
 $(TCP_PRIMARY): tcp_primary_server.o tcp_connection_manager.o time_manager.o background.o
 	$(CC) -o bin/$@ $^ $(CFLAGS) $(LDFLAGS) $(INCLUDE)
 
-tcp_primary_server.o: src/tcp_primary_server.c
+tcp_primary_server.o: src/tcp_primary_server.c include/server.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -c $^
 
 $(TCP_SECONDARY): tcp_secondary_server.o tcp_connection_manager.o time_manager.o background.o
 	$(CC) -o bin/$@ $^ $(CFLAGS) $(LDFLAGS) $(INCLUDE)
 
-tcp_secondary_server.o: src/tcp_secondary_server.c
+tcp_secondary_server.o: src/tcp_secondary_server.c include/server.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -c $^
 
-tcp_connection_manager.o: src/tcp_connection_manager.c
+tcp_connection_manager.o: src/tcp_connection_manager.c include/tcp_connection_manager.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -c $^
 
-time_manager.o: src/time_manager.c
+time_manager.o: src/time_manager.c include/time_manager.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -c $^
 
-background.o: src/background.c
+background.o: src/background.c include/background.h
+	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -c $^
+
+log_manager.o: src/tx_log_manager.c include/tx_log_manager.h
+	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -c $^
+
+log_manager.o: src/tx_log_manager.c include/tx_log_manager.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -c $^
 
 
