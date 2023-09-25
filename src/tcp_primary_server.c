@@ -127,6 +127,10 @@ int main(int argc, char *argv[]) {
 
     /*************************/
 
+    /**** tx log mamanger起動 ****/
+
+    /****************************/
+
     /**** connection manager ****/
     sender_main(srv_config);
     /****************************/

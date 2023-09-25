@@ -8,7 +8,7 @@ lm_config_t *lm_init(size_t server_id)
     sprintf(lm_config->filename, "txlog_srv%d", server_id);
     lm_config->latest_lsn = 0;
 
-    lm_config->fp = fopen(lm_config->filename, "w+");
+    lm_config->fp = fopen(lm_config->filename, "wb+");
     if (lm_config->fp == NULL) {
         fprintf(stderr, "log_manager.c: (line:%d) %s", __LINE__, strerror(errno));
         exit(1);
