@@ -29,7 +29,7 @@ static void usage() {
     fprintf(stdout, "Usage: \n");
     fprintf(stdout, "   - Primary:\n");
     fprintf(stdout, "   ./tcp_primary 1 <address> <port> <duration>\n");
-    fprintf(stdout, "       <IOPS> <threads> <send log size> <servers>\n");
+    fprintf(stdout, "       <IOPS> <threads> <send log size> <secondary servers>\n");
     fprintf(stdout, "       <server2 addr> <server2 port> <server3 addr> <server3 port> ...\n");
     exit(0);
 }
