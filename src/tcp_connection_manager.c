@@ -39,11 +39,12 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
     {
         cnt++;
 
-        msg_len = sprintf(buff, "send message cnt:%d\n", cnt);
+        msg_len = sprintf(buff, "send message cnt:%d", cnt);
         ret = send(sd, buff, msg_len, 0);
         if (ret != msg_len) {
             fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
         }
+        fprintf(stdout, "[send massage] %s\n", buff);
 
         msg_len = recv(sd, buff, MAX_SEND_LOG_SIZE, 0);
         if (msg_len < 0) {
@@ -51,6 +52,7 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
         }
         buff[msg_len] = '\0';
         fprintf(stdout, "[reciev massage] %s\n", buff);
+        sleep(1);
 
         // fprintf(stdout, "[connect] sender thread id:%zu, ipaddr:%s, port:%d\n",
         //         target_id,
@@ -127,8 +129,8 @@ void reciever_main(server_config_t *srv_config)
     }
 
     sv_addr.sin_family = AF_INET;
-    sv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    sv_addr.sin_port = htonl(srv_config->port);
+    sv_addr.sin_addr.s_addr = INADDR_ANY;
+    sv_addr.sin_port = htons(srv_config->port);
 
     ret = bind(listen_sd, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
     if(ret != 0)
@@ -170,7 +172,7 @@ void reciever_main(server_config_t *srv_config)
         fprintf(stdout, "[reciev massage] %s\n", buff);
 
         // ACK返信
-        msg_len = sprintf(buff, "ACK %d\n", cnt);
+        msg_len = sprintf(buff, "ACK %d", cnt);
         ret = send(connection_sd, buff, msg_len, 0);
         if(ret != msg_len)
         {
