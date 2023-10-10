@@ -7,7 +7,7 @@
 
 #define MAX_NUM_SECONDARY_SERVERS  10 // secondaryサーバ数の最大値
 #define MAX_NUM_CLIENT_THREADS 20
-#define MAX_SEND_LOG_SIZE 1024
+#define MAX_SEND_DATA_SIZE 65536 // 2^16バイト
 
 struct server_config_t
 {
