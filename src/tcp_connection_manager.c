@@ -26,7 +26,7 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
     server_config_t *srv_config = worker_info->srv_config;
     size_t target_id = worker_info->target_id;
     int sd = worker_info->sd;
-    char buff[MAX_SEND_LOG_SIZE];
+    char buff[MAX_SEND_DATA_SIZE];
     size_t msg_len;
 
     fprintf(stdout, "sender thread id:%zu, ipaddr:%s, port:%d\n",
@@ -46,7 +46,7 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
         }
         fprintf(stdout, "[send massage] %s\n", buff);
 
-        msg_len = recv(sd, buff, MAX_SEND_LOG_SIZE, 0);
+        msg_len = recv(sd, buff, MAX_SEND_DATA_SIZE, 0);
         if (msg_len < 0) {
             fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
         }
@@ -118,7 +118,7 @@ void reciever_main(server_config_t *srv_config)
     struct sockaddr_in sv_addr;
     struct sockaddr_in cl_addr;
     int cl_addr_len;
-    char buff[MAX_SEND_LOG_SIZE+1];
+    char buff[MAX_SEND_DATA_SIZE];
     int msg_len;
 
     listen_sd = socket(AF_INET, SOCK_STREAM, 0);
@@ -162,7 +162,7 @@ void reciever_main(server_config_t *srv_config)
         cnt++;
 
         // DATA受信
-        msg_len = recv(connection_sd, buff, MAX_SEND_LOG_SIZE, 0);
+        msg_len = recv(connection_sd, buff, MAX_SEND_DATA_SIZE, 0);
         if (msg_len < 0)
         {
             fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
