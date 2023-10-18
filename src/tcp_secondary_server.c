@@ -61,10 +61,13 @@ int main(int argc, char *argv[]) {
     server_config_t *srv_config = parse_srv_config(argc, argv);
     print_secondary_srv_config(srv_config);
 
-    // log manager起動
+    /**** tx log mamanger起動 ****/
+    txlm_config_t *txlm_config = txlm_init(srv_config->srv_id);
+    /****************************/
 
-    // connection manager起動
-    reciever_main(srv_config);
+    /**** connection manager ****/
+    reciever_main(srv_config, txlm_config);
+    /****************************/
 
     return 0;
 }

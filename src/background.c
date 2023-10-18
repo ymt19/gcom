@@ -2,16 +2,18 @@
 
 #include "background.h"
 #include "time_manager.h"
+#include "txlog_manager.h"
 
 struct client_thread_info_t
 {
     size_t client_id;
     server_config_t *srv_config;
+    txlm_config_t *txlm_config;
 };
 typedef struct client_thread_info_t client_thread_info_t;
 
 static void client_worker(client_thread_info_t *info);
-static void commit(size_t client_id, int cnt);
+static void commit(txlm_config_t *txlm_config, size_t client_id);
 
 
 static void client_worker(client_thread_info_t *info)
@@ -23,17 +25,22 @@ static void client_worker(client_thread_info_t *info)
     int cnt = 1;
     while (bench_finish_time > get_time())
     {
-        commit(client_id, cnt++);
+        commit(client_id, client_id);
+        sleep(1);
     }
 }
 
-static void commit(size_t client_id, int cnt)
+/**
+ * log (commit)
+*/
+static void commit(txlm_config_t *txlm_config, size_t client_id)
 {
-    fprintf(stdout, "clinent id: %zu, count: %d\n", client_id, cnt);
-    sleep(1);
+    txlog_t txlog;
+    txlm_append_log(txlm_config, &txlog, client_id);
+    printf("[commit] lsn:%d clientid:%d appendtime:%lf writetime:%lf\n", txlog.lsn, txlog.client_id, txlog.append_time, txlog.write_time);
 }
 
-void background(server_config_t *srv_config)
+void background(server_config_t *srv_config, txlm_config_t *txlm_config)
 {
     pthread_t workers[MAX_NUM_CLIENT_THREADS];
     client_thread_info_t *worker_info_set;
@@ -48,6 +55,7 @@ void background(server_config_t *srv_config)
     {
         worker_info_set[client_id].client_id = client_id+1;
         worker_info_set[client_id].srv_config = srv_config;
+        worker_info_set[client_id].txlm_config = txlm_config;
 
         pthread_create(&workers[client_id], NULL, (void *)client_worker, (void *)&worker_info_set[client_id]);
     }

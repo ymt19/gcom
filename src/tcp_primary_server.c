@@ -2,6 +2,7 @@
 #include "background.h"
 #include "tcp_connection_manager.h"
 #include "time_manager.h"
+#include "txlog_manager.h"
 
 static void print_primary_srv_config(server_config_t *srv_config);
 static void usage();
@@ -128,15 +129,15 @@ int main(int argc, char *argv[]) {
     /*************************/
 
     /**** tx log mamanger起動 ****/
-
+    txlm_config_t *txlm_config = txlm_init(srv_config->srv_id);
     /****************************/
 
     /**** connection manager ****/
-    sender_main(srv_config);
+    sender_main(srv_config, txlm_config);
     /****************************/
 
     /***** background *****/
-    background(srv_config);
+    background(srv_config, txlm_config);
     /**********************/
 
     free(srv_config);

@@ -15,6 +15,7 @@
 struct sender_worker_thread_info_t
 {
     server_config_t *srv_config;
+    txlm_config_t *txlm_config;
     size_t target_id;
     int sd;
 };
@@ -24,10 +25,13 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
 {
     int ret;
     server_config_t *srv_config = worker_info->srv_config;
+    txlm_config_t *txlm_config = worker_info->txlm_config;
     size_t target_id = worker_info->target_id;
+
     int sd = worker_info->sd;
     char buff[MAX_SEND_DATA_SIZE];
     size_t msg_len;
+    unsigned int sent_latest_lsn = 0;      // 送信済みログの最大LSN
 
     fprintf(stdout, "sender thread id:%zu, ipaddr:%s, port:%d\n",
             target_id,
@@ -37,22 +41,24 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
     int cnt = 0;
     while (1)
     {
-        cnt++;
+        if (txlm_get_current_lsn(txlm_config) > sent_latest_lsn) {
+            msg_len = txlm_read_header(txlm_config, buff, sent_latest_lsn+1);
 
-        msg_len = sprintf(buff, "send message cnt:%d", cnt);
-        ret = send(sd, buff, msg_len, 0);
-        if (ret != msg_len) {
-            fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
-        }
-        fprintf(stdout, "[send massage] %s\n", buff);
+            ret = send(sd, buff, msg_len, 0);
+            if (ret != msg_len) {
+                fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
+            }
+            fprintf(stdout, "[send] log data\n");
 
-        msg_len = recv(sd, buff, MAX_SEND_DATA_SIZE, 0);
-        if (msg_len < 0) {
-            fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
+            msg_len = recv(sd, buff, MAX_SEND_DATA_SIZE, 0);
+            if (msg_len < 0) {
+                fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
+            }
+            buff[msg_len] = '\0';
+            fprintf(stdout, "[reciev] %s\n", buff);
+
+            sent_latest_lsn++;
         }
-        buff[msg_len] = '\0';
-        fprintf(stdout, "[reciev massage] %s\n", buff);
-        sleep(1);
 
         // fprintf(stdout, "[connect] sender thread id:%zu, ipaddr:%s, port:%d\n",
         //         target_id,
@@ -62,7 +68,7 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
     }
 }
 
-void sender_main(server_config_t *srv_config)
+void sender_main(server_config_t *srv_config, txlm_config_t *txlm_config)
 {
     // 各secondaryサーバごとにsender_workerを生成
     for (size_t target_id = 1; target_id <= srv_config->num_servers; ++target_id)
@@ -77,6 +83,7 @@ void sender_main(server_config_t *srv_config)
 
         worker_info = malloc(sizeof(sender_worker_thread_info_t));
         worker_info->srv_config = srv_config;
+        worker_info->txlm_config = txlm_config;
         worker_info->target_id = target_id;
 
         sd = socket(AF_INET, SOCK_STREAM, 0);
@@ -111,7 +118,7 @@ void sender_main(server_config_t *srv_config)
     }
 }
 
-void reciever_main(server_config_t *srv_config)
+void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
 {
     int ret;
     int listen_sd, connection_sd;
@@ -156,11 +163,11 @@ void reciever_main(server_config_t *srv_config)
     }
     fprintf(stdout, "connect\n");
 
-    int cnt = 0;
+
+    txlog_t txlog;
+
     while (1)
     {
-        cnt++;
-
         // DATA受信
         msg_len = recv(connection_sd, buff, MAX_SEND_DATA_SIZE, 0);
         if (msg_len < 0)
@@ -169,10 +176,12 @@ void reciever_main(server_config_t *srv_config)
             exit(1);
         }
         buff[msg_len] = '\0';
-        fprintf(stdout, "[reciev massage] %s\n", buff);
+        txlm_get_info_from_header(&txlog, buff);
+        printf("[recieve] lsn:%d clientid:%d appendtime:%lf writetime:%lf\n", txlog.lsn, txlog.client_id, txlog.append_time, txlog.write_time);
+        txlm_wirte_log(txlm_config, &txlog, 0);
 
         // ACK返信
-        msg_len = sprintf(buff, "ACK %d", cnt);
+        msg_len = sprintf(buff, "ACK %d", txlog.lsn);
         ret = send(connection_sd, buff, msg_len, 0);
         if(ret != msg_len)
         {
