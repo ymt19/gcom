@@ -20,12 +20,12 @@ static void client_worker(client_thread_info_t *info)
 {
     size_t client_id = info->client_id;
     server_config_t *srv_config = info->srv_config;
+    txlm_config_t *txlm_config = info->txlm_config;
     double bench_finish_time = srv_config->system_start_time + srv_config->duration;
 
-    int cnt = 1;
     while (bench_finish_time > get_time())
     {
-        commit(client_id, client_id);
+        commit(txlm_config, client_id);
         sleep(1);
     }
 }
@@ -37,7 +37,7 @@ static void commit(txlm_config_t *txlm_config, size_t client_id)
 {
     txlog_t txlog;
     txlm_append_log(txlm_config, &txlog, client_id);
-    printf("[commit] lsn:%d clientid:%d appendtime:%lf writetime:%lf\n", txlog.lsn, txlog.client_id, txlog.append_time, txlog.write_time);
+    print_txlog_info(&txlog);
 }
 
 void background(server_config_t *srv_config, txlm_config_t *txlm_config)
