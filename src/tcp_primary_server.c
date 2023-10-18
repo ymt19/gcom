@@ -140,6 +140,9 @@ int main(int argc, char *argv[]) {
     background(srv_config, txlm_config);
     /**********************/
 
+    /* 終了 */
+    txlm_deinit(txlm_config);
     free(srv_config);
+    fprintf(stdout, "normal end.\n");
     return 0;
 }

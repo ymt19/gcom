@@ -31,18 +31,17 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
     int sd = worker_info->sd;
     char buff[MAX_SEND_DATA_SIZE];
     size_t msg_len;
-    unsigned int sent_latest_lsn = 0;      // 送信済みログの最大LSN
+    unsigned int next_lsn = TXLOG_MIN_LSN; // 未送信LSNの最小値（送信済みLSNの最大値 + 1）
 
     fprintf(stdout, "sender thread id:%zu, ipaddr:%s, port:%d\n",
             target_id,
             srv_config->srvs_ipaddr[target_id],
             srv_config->srvs_port[target_id]);
-    
-    int cnt = 0;
+
     while (1)
     {
-        if (txlm_get_current_lsn(txlm_config) > sent_latest_lsn) {
-            msg_len = txlm_read_header(txlm_config, buff, sent_latest_lsn+1);
+        if (txlm_get_current_lsn(txlm_config) >= next_lsn) {
+            msg_len = txlm_read_header(txlm_config, buff, next_lsn);
 
             ret = send(sd, buff, msg_len, 0);
             if (ret != msg_len) {
@@ -57,14 +56,8 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
             buff[msg_len] = '\0';
             fprintf(stdout, "[reciev] %s\n", buff);
 
-            sent_latest_lsn++;
+            next_lsn++;
         }
-
-        // fprintf(stdout, "[connect] sender thread id:%zu, ipaddr:%s, port:%d\n",
-        //         target_id,
-        //         srv_config->srvs_ipaddr[target_id],
-        //         srv_config->srvs_port[target_id]);
-        // sleep(1);
     }
 }
 

@@ -1,5 +1,7 @@
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 
 #include "txlog_manager.h"
 #include "time_manager.h"
@@ -8,10 +10,10 @@ txlm_config_t *txlm_init(size_t server_id)
 {
     txlm_config_t *txlm_config = malloc(sizeof(txlm_config_t));
 
-    sprintf(txlm_config->filename, "txlog_srv%d.bin", server_id);
+    sprintf(txlm_config->filename, "txlog_srv%ld.bin", server_id);
     remove(txlm_config->filename);
 
-    txlm_config->latest_lsn = 0;
+    txlm_config->latest_lsn = TXLOG_MIN_LSN-1;
     pthread_mutex_init(&txlm_config->mutex_lsn, NULL);
 
     return txlm_config;
@@ -21,6 +23,11 @@ void txlm_deinit(txlm_config_t *txlm_config)
 {
     pthread_mutex_destroy(&txlm_config->mutex_lsn);
     free(txlm_config);
+}
+
+void print_txlog_info(txlog_t *txlog)
+{
+    fprintf(stdout, "[txlog] lsn:%d, clientid:%d, appendtime:%lf, writetime:%lf\n", txlog->lsn, txlog->client_id, txlog->append_time, txlog->write_time);
 }
 
 size_t txlm_get_current_lsn(txlm_config_t *txlm_config)
@@ -34,28 +41,32 @@ size_t txlm_get_current_lsn(txlm_config_t *txlm_config)
 
 void txlm_append_log(txlm_config_t *txlm_config, txlog_t *txlog, unsigned short client_id)
 {
-    unsigned int lsn;
-
     pthread_mutex_lock(&txlm_config->mutex_lsn);        // lock
-    lsn = ++txlm_config->latest_lsn;
-    pthread_mutex_unlock(&txlm_config->mutex_lsn);      // unlock
-
-    txlog->lsn = lsn;
+    txlog->lsn = txlm_config->latest_lsn+1;
     txlog->client_id = client_id;
     txlog->append_time = -1;
     txlog->write_time = -1;
 
     txlm_wirte_log(txlm_config, txlog, 1);
+    txlm_config->latest_lsn++;
+    pthread_mutex_unlock(&txlm_config->mutex_lsn);      // unlock
 }
 
-size_t txlm_read_header(txlm_config_t *txlm_config, unsigned char *header, size_t lsn)
+size_t txlm_read_header(txlm_config_t *txlm_config, char *header, size_t lsn)
 {
+    if (lsn < TXLOG_MIN_LSN || lsn > txlm_get_current_lsn(txlm_config)) {
+        exit(1);
+    }
+
     FILE *fp;
     size_t offset = lsn * TXLOG_HEADER_SIZE;
 
     fp = fopen(txlm_config->filename, "rb");
+    if (fp == NULL) {
+        fprintf(stderr, "fopen():%s\n", strerror(errno));
+    }
     fseek(fp, offset, SEEK_SET);
-    fread(header, sizeof(unsigned char), TXLOG_HEADER_SIZE, fp);
+    fread(header, sizeof(char), TXLOG_HEADER_SIZE, fp);
     fclose(fp);
 
     return TXLOG_HEADER_SIZE;
@@ -64,7 +75,7 @@ size_t txlm_read_header(txlm_config_t *txlm_config, unsigned char *header, size_
 void txlm_wirte_log(txlm_config_t *txlm_config, txlog_t *txlog, int set_append_time_flag)
 {
     FILE *fp;
-    unsigned char header[TXLOG_HEADER_SIZE];
+    char header[TXLOG_HEADER_SIZE];
     size_t offset = txlog->lsn * TXLOG_HEADER_SIZE;
 
     txlog->write_time = get_time();
@@ -79,11 +90,11 @@ void txlm_wirte_log(txlm_config_t *txlm_config, txlog_t *txlog, int set_append_t
 
     fp = fopen(txlm_config->filename, "wb");
     fseek(fp, offset, SEEK_SET);
-    fwrite(header, sizeof(unsigned char), TXLOG_HEADER_SIZE, fp);
+    fwrite(header, sizeof(char), TXLOG_HEADER_SIZE, fp);
     fclose(fp);
 }
 
-void txlm_get_info_from_header(txlog_t *log, unsigned char *header)
+void txlm_get_info_from_header(txlog_t *log, char *header)
 {
     memcpy(&log->lsn, header + TXLOG_HEADER_OFFSET_LSN, sizeof(unsigned int));
     memcpy(&log->client_id, header + TXLOG_HEADER_OFFSET_CLIENTID, sizeof(short));

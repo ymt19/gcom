@@ -3,10 +3,12 @@
 #include <stdio.h>
 #include <pthread.h>
 
+#define TXLOG_MIN_LSN   1
+
 struct txlm_config_t
 {
     char filename[16];
-    size_t latest_lsn;
+    size_t latest_lsn;  // 生成済み最大LSN
     pthread_mutex_t mutex_lsn;
 };
 typedef struct txlm_config_t txlm_config_t;
@@ -29,8 +31,9 @@ typedef struct txlog_t txlog_t;
 
 txlm_config_t *txlm_init(size_t server_id);
 void txlm_deinit(txlm_config_t *txlm_config);
+void print_txlog_info(txlog_t *txlog);
 size_t txlm_get_current_lsn(txlm_config_t *txlm_config);
 void txlm_append_log(txlm_config_t *txlm_config, txlog_t *txlog, unsigned short client_id);
-size_t txlm_read_header(txlm_config_t *txlm_config, unsigned char *header, size_t lsn);
+size_t txlm_read_header(txlm_config_t *txlm_config, char *header, size_t lsn);
 void txlm_wirte_log(txlm_config_t *txlm_config, txlog_t *txlog, int set_append_time_flag);
-void txlm_get_info_from_header(txlog_t *log, unsigned char *header);
+void txlm_get_info_from_header(txlog_t *log, char *header);
