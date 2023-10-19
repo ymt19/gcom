@@ -142,8 +142,9 @@ int main(int argc, char *argv[]) {
     /**********************/
 
     /* 終了 */
-    txlm_deinit(txlm_config);
+    fprintf(stdout, "exited normally.\n");
     free(srv_config);
-    fprintf(stdout, "normal end.\n");
+    txlm_deinit(txlm_config);
+
     return 0;
 }

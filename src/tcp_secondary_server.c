@@ -69,5 +69,9 @@ int main(int argc, char *argv[]) {
     reciever_main(srv_config, txlm_config);
     /****************************/
 
+    fprintf(stdout, "exited normally.\n");
+    free(srv_config);
+    txlm_deinit(txlm_config);
+
     return 0;
 }
