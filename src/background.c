@@ -3,6 +3,7 @@
 #include "background.h"
 #include "time_manager.h"
 #include "txlog_manager.h"
+#include "log_manager.h"
 
 struct client_thread_info_t
 {
@@ -13,7 +14,7 @@ struct client_thread_info_t
 typedef struct client_thread_info_t client_thread_info_t;
 
 static void client_worker(client_thread_info_t *info);
-static void commit(txlm_config_t *txlm_config, size_t client_id);
+static unsigned int commit(txlm_config_t *txlm_config, size_t client_id);
 
 
 static void client_worker(client_thread_info_t *info)
@@ -22,22 +23,27 @@ static void client_worker(client_thread_info_t *info)
     server_config_t *srv_config = info->srv_config;
     txlm_config_t *txlm_config = info->txlm_config;
     double bench_finish_time = srv_config->system_start_time + srv_config->duration;
+    unsigned int lsn;
 
     while (bench_finish_time > get_time())
     {
-        commit(txlm_config, client_id);
+        lsn = commit(txlm_config, client_id);
+        lm_append_commit_tx_log(client_id, lsn);
+        
         sleep(1);
+        lm_append_response_tx_log(client_id, lsn);
     }
 }
 
 /**
  * log (commit)
 */
-static void commit(txlm_config_t *txlm_config, size_t client_id)
+static unsigned int commit(txlm_config_t *txlm_config, size_t client_id)
 {
     txlog_t txlog;
     txlm_append_log(txlm_config, &txlog, client_id);
     print_txlog_info(&txlog);
+    return txlog.lsn;
 }
 
 void background(server_config_t *srv_config, txlm_config_t *txlm_config)

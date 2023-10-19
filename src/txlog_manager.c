@@ -5,6 +5,7 @@
 
 #include "txlog_manager.h"
 #include "time_manager.h"
+#include "log_manager.h"
 
 static int get_log_offset(unsigned int lsn);
 
@@ -105,6 +106,8 @@ void txlm_wirte_log(txlm_config_t *txlm_config, txlog_t *txlog, int set_append_t
     fseek(fp, offset, SEEK_SET);
     fwrite(header, sizeof(char), TXLOG_HEADER_SIZE, fp);
     fclose(fp);
+
+    lm_append_write_txlog_log(txlog);
 }
 
 void txlm_get_info_from_header(txlog_t *log, char *header)

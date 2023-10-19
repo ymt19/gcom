@@ -12,6 +12,7 @@
 #include "tcp_connection_manager.h"
 #include "server.h"
 #include "message.h"
+#include "log_manager.h"
 
 struct sender_worker_thread_info_t
 {
@@ -48,20 +49,14 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
             msg_len = msg_len + txlm_read_log(txlm_config, buff + msg_len, next_lsn);
 
             ret = send(sd, buff, msg_len, 0);
-            if (ret != msg_len) {
-                fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
-            }
-            fprintf(stdout, "[send] log data\n");
+            lm_append_send_message_log(buff, ret);
 
             /* LOGACKの受信 */
             msg_len = recv(sd, buff, MAX_SEND_DATA_SIZE, 0);
             get_info_from_message_header(buff, &recv_msg_info);
-            fprintf(stdout, "[receive] len:%d type:%d, source:%d, destination:%d, lsnack:%d\n", msg_len, recv_msg_info.type, recv_msg_info.source_id, recv_msg_info.destination_id, recv_msg_info.lsn_ack);
-            if (recv_msg_info.type == TXLOGACK_MESSAGE) {
-                if (msg_len < 0) {
-                    fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
-                }
+            lm_append_receive_message_log(buff, msg_len);
 
+            if (recv_msg_info.type == TXLOGACK_MESSAGE) {
                 next_lsn++;
             } else {
                 fprintf(stderr, "receive error\n");
@@ -174,14 +169,9 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
     {
         // DATA受信
         msg_len = recv(connection_sd, buff, MAX_SEND_DATA_SIZE, 0);
-        if (msg_len < 0)
-        {
-            fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
-            exit(1);
-        }
-
         get_info_from_message_header(buff, &recv_msg_info);
-        fprintf(stdout, "[receive] len:%d type:%d, source:%d, destination:%d, lsnack:%d\n", msg_len, recv_msg_info.type, recv_msg_info.source_id, recv_msg_info.destination_id, recv_msg_info.lsn_ack);
+        lm_append_receive_message_log(buff, msg_len);
+
         if (recv_msg_info.type == TXLOG_MESSAGE) {
             txlm_get_info_from_header(&txlog, buff + MESSAGE_HEADER_SIZE);
             print_txlog_info(&txlog);
@@ -190,11 +180,7 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
             // ACK返信
             msg_len = create_txlogack_message_header(buff, srv_config->srv_id, recv_msg_info.source_id, txlog.lsn);
             ret = send(connection_sd, buff, msg_len, 0);
-            if(ret != msg_len)
-            {
-                fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
-                exit(1);
-            }
+            lm_append_send_message_log(buff, msg_len);
         } else {
             fprintf(stderr, "receive error\n");
             exit(1);

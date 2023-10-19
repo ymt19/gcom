@@ -1,5 +1,7 @@
 #include "server.h"
 #include "tcp_connection_manager.h"
+#include "txlog_manager.h"
+#include "log_manager.h"
 
 static void print_secondary_srv_config(server_config_t *srv_config);
 static void usage();
@@ -61,6 +63,10 @@ int main(int argc, char *argv[]) {
     server_config_t *srv_config = parse_srv_config(argc, argv);
     print_secondary_srv_config(srv_config);
 
+    /**** log mamanger起動 ****/
+    lm_init(srv_config->srv_id);
+    /*************************/
+
     /**** tx log mamanger起動 ****/
     txlm_config_t *txlm_config = txlm_init(srv_config->srv_id, -1);
     /****************************/
@@ -72,6 +78,7 @@ int main(int argc, char *argv[]) {
     fprintf(stdout, "exited normally.\n");
     free(srv_config);
     txlm_deinit(txlm_config);
+    lm_deinit();
 
     return 0;
 }

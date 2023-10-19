@@ -4,6 +4,7 @@
 #include "time_manager.h"
 #include "txlog_manager.h"
 #include "message.h"
+#include "log_manager.h"
 
 static void print_primary_srv_config(server_config_t *srv_config);
 static void usage();
@@ -126,7 +127,7 @@ int main(int argc, char *argv[]) {
     print_primary_srv_config(srv_config);
 
     /**** log mamanger起動 ****/
-
+    lm_init(srv_config->srv_id);
     /*************************/
 
     /**** tx log mamanger起動 ****/
@@ -145,6 +146,7 @@ int main(int argc, char *argv[]) {
     fprintf(stdout, "exited normally.\n");
     free(srv_config);
     txlm_deinit(txlm_config);
+    lm_deinit();
 
     return 0;
 }
