@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
     print_secondary_srv_config(srv_config);
 
     /**** tx log mamanger起動 ****/
-    txlm_config_t *txlm_config = txlm_init(srv_config->srv_id);
+    txlm_config_t *txlm_config = txlm_init(srv_config->srv_id, -1);
     /****************************/
 
     /**** connection manager ****/

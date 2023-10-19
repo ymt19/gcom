@@ -11,6 +11,7 @@
 
 #include "tcp_connection_manager.h"
 #include "server.h"
+#include "message.h"
 
 struct sender_worker_thread_info_t
 {
@@ -30,8 +31,9 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
 
     int sd = worker_info->sd;
     char buff[MAX_SEND_DATA_SIZE];
-    size_t msg_len;
+    unsigned int msg_len;
     unsigned int next_lsn = TXLOG_MIN_LSN; // 未送信LSNの最小値（送信済みLSNの最大値 + 1）
+    msg_info_t recv_msg_info;
 
     fprintf(stdout, "sender thread id:%zu, ipaddr:%s, port:%d\n",
             target_id,
@@ -41,7 +43,9 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
     while (1)
     {
         if (txlm_get_current_lsn(txlm_config) >= next_lsn) {
-            msg_len = txlm_read_header(txlm_config, buff, next_lsn);
+            /* LOGの送信 */
+            msg_len = create_txlog_message_header(buff, srv_config->srv_id, target_id);
+            msg_len = msg_len + txlm_read_log(txlm_config, buff + msg_len, next_lsn);
 
             ret = send(sd, buff, msg_len, 0);
             if (ret != msg_len) {
@@ -49,14 +53,20 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
             }
             fprintf(stdout, "[send] log data\n");
 
+            /* LOGACKの受信 */
             msg_len = recv(sd, buff, MAX_SEND_DATA_SIZE, 0);
-            if (msg_len < 0) {
-                fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
-            }
-            buff[msg_len] = '\0';
-            fprintf(stdout, "[reciev] %s\n", buff);
+            get_info_from_message_header(buff, &recv_msg_info);
+            fprintf(stdout, "[receive] len:%d type:%d, source:%d, destination:%d, lsnack:%d\n", msg_len, recv_msg_info.type, recv_msg_info.source_id, recv_msg_info.destination_id, recv_msg_info.lsn_ack);
+            if (recv_msg_info.type == TXLOGACK_MESSAGE) {
+                if (msg_len < 0) {
+                    fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
+                }
 
-            next_lsn++;
+                next_lsn++;
+            } else {
+                fprintf(stderr, "receive error\n");
+                exit(1);
+            }
         }
     }
 }
@@ -157,6 +167,7 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
     fprintf(stdout, "connect\n");
 
 
+    msg_info_t recv_msg_info;
     txlog_t txlog;
 
     while (1)
@@ -168,17 +179,24 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
             fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
             exit(1);
         }
-        buff[msg_len] = '\0';
-        txlm_get_info_from_header(&txlog, buff);
-        printf("[recieve] lsn:%d clientid:%d appendtime:%lf writetime:%lf\n", txlog.lsn, txlog.client_id, txlog.append_time, txlog.write_time);
-        txlm_wirte_log(txlm_config, &txlog, 0);
 
-        // ACK返信
-        msg_len = sprintf(buff, "ACK %d", txlog.lsn);
-        ret = send(connection_sd, buff, msg_len, 0);
-        if(ret != msg_len)
-        {
-            fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
+        get_info_from_message_header(buff, &recv_msg_info);
+        fprintf(stdout, "[receive] len:%d type:%d, source:%d, destination:%d, lsnack:%d\n", msg_len, recv_msg_info.type, recv_msg_info.source_id, recv_msg_info.destination_id, recv_msg_info.lsn_ack);
+        if (recv_msg_info.type == TXLOG_MESSAGE) {
+            txlm_get_info_from_header(&txlog, buff + MESSAGE_HEADER_SIZE);
+            print_txlog_info(&txlog);
+            txlm_wirte_log(txlm_config, &txlog, 0);
+
+            // ACK返信
+            msg_len = create_txlogack_message_header(buff, srv_config->srv_id, recv_msg_info.source_id, txlog.lsn);
+            ret = send(connection_sd, buff, msg_len, 0);
+            if(ret != msg_len)
+            {
+                fprintf(stderr, "tcp_connection_manager.c: (line:%d) %s", __LINE__, strerror(errno));
+                exit(1);
+            }
+        } else {
+            fprintf(stderr, "receive error\n");
             exit(1);
         }
     }
