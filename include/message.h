@@ -5,7 +5,7 @@ enum message_enum
     TXLOG_MESSAGE,
     TXLOGACK_MESSAGE,
     FIN_MESSAGE,
-    ERROR,
+    ERROR_MESSAGE,
 };
 typedef enum message_enum msg_e;
 
