@@ -6,13 +6,13 @@ CFLAGS              = -g -Wall -g
 LDFLAGS             = -lpthread
 INCLUDE             = -I./include
 
-$(TCP_PRIMARY): tcp_primary_server.o tcp_connection_manager.o time_manager.o background.o txlog_manager.o message.o
+$(TCP_PRIMARY): tcp_primary_server.o tcp_connection_manager.o time_manager.o background.o txlog_manager.o message.o log_manager.o
 	$(CC) -o bin/$@ $^ $(CFLAGS) $(LDFLAGS) $(INCLUDE)
 
 tcp_primary_server.o: src/tcp_primary_server.c include/server.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -c $<
 
-$(TCP_SECONDARY): tcp_secondary_server.o tcp_connection_manager.o time_manager.o background.o txlog_manager.o message.o
+$(TCP_SECONDARY): tcp_secondary_server.o tcp_connection_manager.o time_manager.o background.o txlog_manager.o message.o log_manager.o
 	$(CC) -o bin/$@ $^ $(CFLAGS) $(LDFLAGS) $(INCLUDE)
 
 tcp_secondary_server.o: src/tcp_secondary_server.c include/server.h
@@ -35,6 +35,9 @@ test_txlog_manager: test/test_txlog_manager.c txlog_manager.o time_manager.o
 	./bin/$@
 
 message.o: src/message.c include/message.h
+	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -c $<
+
+log_manager.o: src/log_manager.c include/log_manager.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE) -c $<
 
 
