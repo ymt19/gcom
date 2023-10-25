@@ -33,17 +33,17 @@ void multicast_deinit(mc_info_t *mc_info)
     free(mc_info);
 }
 
-void send_message()
+void unicast_send()
 {
 
 }
 
-void group_send_message()
+void multicast_send()
 {
 
 }
 
-void receive_message()
+void receive()
 {
 
 }
