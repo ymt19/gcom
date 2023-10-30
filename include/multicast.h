@@ -1,17 +1,26 @@
 #pragma once
 
 #include <netinet/in.h>
+#include <pthread.h>
 
-struct multicast_info_t
+#include "buffer.h"
+
+struct send_info_t
 {
-    /* 送信用 */
-    int send_sd;
-
-    /* 受信用 */
-    int recv_sd;
-    struct sockaddr_in addr;
+    int sd;
 };
-typedef struct multicast_info_t mc_info_t;
+typedef struct send_info_t send_info_t;
+
+struct receive_info_t
+{
+    int sd;
+    struct sockaddr_in addr;
+
+    buff_t *recv_buff;
+
+    pthread_t bg;
+};
+typedef struct receive_info_t recv_info_t;
 
 struct destination_info_t
 {
