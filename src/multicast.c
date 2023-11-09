@@ -18,57 +18,57 @@ static void recv_bg(recv_info_t *recv_info)
 
 }
 
-send_info_t *send_info_init()
+sender_socket_t *sender_socket()
 {
-    send_info_t *send_info = malloc(sizeof(send_inof_t));
+    sender_socket_t *sock = malloc(sizeof(sender_socket_t));
 
     send_info->sd = sokcet(AF_INET, SOCK_DGRAM, 0);
 
-    return send_info;
+    return sock;
 }
 
-void send_info_deinit(send_info_t *send_info)
+void sender_close(sender_socket_t *sock)
 {
-    close(send_info->sd);
-    free(send_info);
+    close(sock->sd);
+    free(sock);
 }
 
-recv_info_t *recv_info_init(int port)
+void sendto_unicast(sender_socket_t *sock, char *buff, int len, addr_t *dest_addr)
 {
-    recv_info_t *recv_info = mallco(sizeof(recv_info_t));
+    
+}
 
-    recv_info->sd = socket(AF_INET, SOCK_DGRAM, 0);
-    recv_info->addr.sin_family = AF_INET;
-    recv_info->addr.sin_port = htons(port);
-    recv_info->addr.sin_addr.s_addr = INADDR_ANY;
-    bind(recv_info->recv_sd, (struct sockaddr *)&recv_info->addr, sizeof(recv_info->addr));
+void sendto_multicast(sender_socket_t *sock, char *buff, int len, addr_list_t *dest_addr_list)
+{
+
+}
+
+receiver_socket_t *recveiver_socket(int port, int buf_size, int buf_blk_size)
+{
+    receiver_socket_t *sock = mallco(sizeof(receiver_socket_t));
+
+    sock->sd = socket(AF_INET, SOCK_DGRAM, 0);
+    sock->addr.sin_family = AF_INET;
+    sock->addr.sin_port = htons(port);
+    sock->addr.sin_addr.s_addr = INADDR_ANY;
+    bind(sock->recv_sd, (struct sockaddr *)&sock->addr, sizeof(sock->addr));
 
     recv_info->buffer = buffer_init();
 
-    pthread_create(&recv_info->bg, NULL, (void *)recv_bg, (void*)recv_info);
+    pthread_create(&sock->bg, NULL, (void *)recv_bg, (void*)recv_info);
 
-    return recv_info;
+    return sock;
 }
 
-void recv_info_init(recv_info_t *recv_info)
+void receiver_close(receiver_socket_t *sock)
 {
-    close(recv_info->sd);
-    buffer_deinit(recv_info->recv_buffer);
-    pthread_join(recv_info->bg, NULL);
-    free(recv_info);
+    close(sock->sd);
+    buffer_deinit(sock->recv_buffer);
+    pthread_join(sock->bg, NULL);
+    free(sock);
 }
 
-void unicast_send(send_info_t *send_info, char *buff, int len, dest_info_t *dest_info)
-{
-
-}
-
-void multicast_send(send_info_t *send_info, char *buff, int len, dest_info_t *dest_info)
-{
-
-}
-
-int recv(recv_info_t *recv_info, char *buff, int len)
+int recvfrom(receiver_socket_t *sock, char *buff, int len, addr_t *src_addr)
 {
 
 }

@@ -5,13 +5,13 @@
 
 #include "buffer.h"
 
-struct send_info_t
+struct sender_socket_t
 {
     int sd;
 };
-typedef struct send_info_t send_info_t;
+typedef struct sender_socket_t sender_socket_t;
 
-struct receive_info_t
+struct receiver_socket_t
 {
     int sd;
     struct sockaddr_in addr;
@@ -20,10 +20,16 @@ struct receive_info_t
 
     pthread_t bg;
 };
-typedef struct receive_info_t recv_info_t;
+typedef struct receiver_socket_t receiver_socket_t;
 
-struct destination_info_t
+struct addr_t
 {
     struct sockaddr_in dest_addr[10];
 };
-typedef struct destination_info_t dest_info_t;
+typedef struct addr_t addr_t;
+
+struct addr_list_t
+{
+    struct addr_t *next;
+};
+typedef struct addr_list_t addr_list_t;
