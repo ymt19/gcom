@@ -5,6 +5,8 @@
 
 #include "buffer.h"
 
+#define RECV_BUFF_SIZE 65535
+
 struct sender_socket_t
 {
     int sd;
@@ -14,9 +16,8 @@ typedef struct sender_socket_t sender_socket_t;
 struct receiver_socket_t
 {
     int sd;
-    struct sockaddr_in addr;
 
-    buff_t *recv_buff;
+    char buff[RECV_BUFF_SIZE];
 
     pthread_t bg;
 };
