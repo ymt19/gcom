@@ -5,11 +5,12 @@
 
 #include "multicast.h"
 
+#define UDP_PAYLOAD_SIZE_MAX 1472
+
 struct header {
     uint32_t seq;
     uint32_t ack;
-    uint8_t flg;
-    uint16_t sum;
+    uint8_t flag;
 
     uint32_t gn1_addr;
     uint16_t gn1_port;
@@ -18,22 +19,50 @@ struct header {
 };
 
 static void
-output_segment(sender_socket_t *sock)
+output_segment(sender_socket_t *sock, uint32_t seq, uint32_t ack, uint8_t flag, endpoint_t *gn1, endpoint_t *gn2, uint8_t *data, size_t len, endpoint_t *dest)
 {
-    // sendto()
+    uint8_t buf[UDP_PAYLOAD_SIZE_MAX] = {};
+    struct header *hdr;
+    uint16_t total;
+    struct sockaddr_in destaddr;
+
+    hdr = (struct header *)buf;
+    hdr->seq = seq;
+    hdr->ack = ack;
+    hdr->flag = flag;
+    if (gn1 == NULL) {
+        hdr->gn1_addr = NULL;
+        hdr->gn1_port = NULL;
+    } else {
+        hdr->gn1_addr = gn1->addr;
+        hdr->gn1_port = gn1->port;
+    }
+    if (gn2 == NULL) {
+        hdr->gn2_addr = NULL;
+        hdr->gn2_port = NULL;
+    } else {
+        hdr->gn2_addr = gn2->addr;
+        hdr->gn2_port = gn2->port;
+    }
+    memcpy(hdr + 1, data, len);
+    total = sizeof(*hdr) + len;
+
+    destaddr.sin_family = AF_INET;
+    destaddr.sin_port = dest->port;
+    destaddr.sin_addr.s_addr = dest->addr;
+    sendto(sock->fd, buf, total, 0, (struct sockaddr *)destaddr, sizeof(destaddr));
 }
 
 static void
-input_segment(receiver_socket_t *sock, int blocking)
+input_segment(receiver_socket_t *sock)
 {
-    // blking==1 blocking
     // recvfrom()
 }
 
 static void
-receiver_bg(receiver_socket_t *sock)
+bg_receiver(receiver_socket_t *sock)
 {
-    while ()
+    while (1)
     {
         // input_segment(1) blocking
         // if data ->
@@ -61,10 +90,10 @@ sender_close(sender_socket_t *sock)
 }
 
 ssize_t
-sendto_unicast(sender_socket_t *sock, char *buff, ssize_t len, addr_t *dest_addr)
+sendto_unicast(sender_socket_t *sock, char *buff, ssize_t len, struct sockaddr_in *destaddr)
 {
     ssize_t sent = 0;
-    while ()
+    while (sent < len)
     {
         // input_segment(0) nonblocking
         // if nack -> retransmission
@@ -78,10 +107,10 @@ sendto_unicast(sender_socket_t *sock, char *buff, ssize_t len, addr_t *dest_addr
 }
 
 ssize_t
-sendto_multicast(sender_socket_t *sock, char *buff, ssize_t len, addr_list_t *dest_addr_list)
+sendto_multicast(sender_socket_t *sock, char *buff, ssize_t len, dest_info_t *dest_info)
 {
     ssize_t sent = 0;
-    while ()
+    while (sent < len)
     {
         // input_segment(0) nonblocking
         // if nack -> retransmission
@@ -99,7 +128,7 @@ sendto_multicast(sender_socket_t *sock, char *buff, ssize_t len, addr_list_t *de
 }
 
 receiver_socket_t *
-recveiver_socket(int port, int buf_size, int buf_blk_size)
+recveiver_socket(int port)
 {
     struct sockaddr_in addr;
 
@@ -111,8 +140,7 @@ recveiver_socket(int port, int buf_size, int buf_blk_size)
     addr.sin_addr.s_addr = INADDR_ANY;
     bind(sock->recv_sd, (struct sockaddr *)&addr, sizeof(addr));
 
-    pthread_create(&sock->bg, NULL, (void *)receiver_bg, (void*)sock);
-    pthread_detatch(sock->bg);
+    pthread_create(&sock->bg_thread, NULL, (void *)bg_receiver, (void*)sock);
 
     return sock;
 }
@@ -120,6 +148,8 @@ recveiver_socket(int port, int buf_size, int buf_blk_size)
 void
 receiver_close(receiver_socket_t *sock)
 {
+    pthread_cancel(sock->bg_thread);
+    pthread_join(sock->bg_thread, NULL);
     close(sock->sd);
     free(sock);
 }
@@ -127,7 +157,7 @@ receiver_close(receiver_socket_t *sock)
 int
 recvfrom(receiver_socket_t *sock, char *buff, int len, addr_t *src_addr)
 {
-    while ()
+    while (1)
     {
         // if recvbuffにデータがある
             // buffに格納

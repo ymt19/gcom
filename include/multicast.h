@@ -3,8 +3,6 @@
 #include <netinet/in.h>
 #include <pthread.h>
 
-#include "buffer.h"
-
 #define RECV_BUFF_SIZE 65535
 
 struct sender_socket_t
@@ -19,18 +17,26 @@ struct receiver_socket_t
 
     char buff[RECV_BUFF_SIZE];
 
-    pthread_t bg;
+    pthread_t bg_thread;
 };
 typedef struct receiver_socket_t receiver_socket_t;
 
-struct addr_t
+struct endpoint_t
 {
-    struct sockaddr_in dest_addr[10];
+    uint16_t port;
+    uint32_t addr;
 };
-typedef struct addr_t addr_t;
+typedef struct endpoint_t endpoint_t;
 
-struct addr_list_t
+struct endpoint_list_t
 {
-    struct addr_t *next;
+    endpoint_t endpoint;
+    struct endpoint_list_t *next;
 };
-typedef struct addr_list_t addr_list_t;
+typedef struct endpoint_list_t endpoint_list_t;
+
+struct dest_info_t
+{
+    endpoint_list_t *endpoint_list_head;
+};
+typedef struct dest_info_t dest_info_t;
