@@ -64,7 +64,7 @@ bg_receiver(receiver_socket_t *sock)
 {
     while (1)
     {
-        // input_segment(1) blocking
+        // input_segment(1)
         // if data ->
         // else if nack ->
         // else if ack ->
@@ -95,13 +95,14 @@ sendto_unicast(sender_socket_t *sock, char *buff, ssize_t len, struct sockaddr_i
     ssize_t sent = 0;
     while (sent < len)
     {
-        // input_segment(0) nonblocking
+        // if sent < len
+            // sent += output_segment()
+    }
+    while (1) {
+        // input_segment(0)
         // if nack -> retransmission
         // else if ack -> break
         // else -> error
-
-        // if sent < len
-            // sent += output_segment()
     }
     return sent;
 }
@@ -110,19 +111,22 @@ ssize_t
 sendto_multicast(sender_socket_t *sock, char *buff, ssize_t len, dest_info_t *dest_info)
 {
     ssize_t sent = 0;
+    int recvack = 0;
     while (sent < len)
     {
-        // input_segment(0) nonblocking
-        // if nack -> retransmission
-        // else if ack
-            // ackcnt++
-            // if ackcnt == ?? -> break
-        // else -> error
-
         // if sent < len
             // for dest_addr_list
                 // output_segment()
             // sent += ??
+    }
+    while (1)
+    {
+        // input_segment(0)
+        // if nack -> retransmission
+        // else if ack
+            // recvack++
+            // if recvack == ?? -> break
+        // else -> error
     }
     return sent;
 }

@@ -13,11 +13,11 @@ typedef struct sender_socket_t sender_socket_t;
 
 struct receiver_socket_t
 {
+    pthread_t bg_thread;
+    
     int sd;
 
     char buff[RECV_BUFF_SIZE];
-
-    pthread_t bg_thread;
 };
 typedef struct receiver_socket_t receiver_socket_t;
 
