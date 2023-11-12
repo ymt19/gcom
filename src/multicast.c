@@ -119,13 +119,12 @@ sendto_multicast(sender_socket_t *sock, char *buff, ssize_t len, dest_info_t *de
                 // output_segment()
             // sent += ??
     }
-    while (1)
+    while (recvack > dest_info->dest)
     {
         // input_segment(0)
         // if nack -> retransmission
         // else if ack
             // recvack++
-            // if recvack == ?? -> break
         // else -> error
     }
     return sent;
