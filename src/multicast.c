@@ -19,7 +19,7 @@ struct header {
 };
 
 static void
-output_segment(sender_socket_t *sock, uint32_t seq, uint32_t ack, uint8_t flag, endpoint_t *gn1, endpoint_t *gn2, uint8_t *data, size_t len, endpoint_t *dest)
+output_segment(int sd, uint32_t seq, uint32_t ack, uint8_t flag, endpoint_t *gn1, endpoint_t *gn2, uint8_t *data, size_t len, endpoint_t *dest)
 {
     uint8_t buf[UDP_PAYLOAD_SIZE_MAX] = {};
     struct header *hdr;
@@ -50,11 +50,11 @@ output_segment(sender_socket_t *sock, uint32_t seq, uint32_t ack, uint8_t flag, 
     destaddr.sin_family = AF_INET;
     destaddr.sin_port = dest->port;
     destaddr.sin_addr.s_addr = dest->addr;
-    sendto(sock->fd, buf, total, 0, (struct sockaddr *)destaddr, sizeof(destaddr));
+    sendto(fd, buf, total, 0, (struct sockaddr *)destaddr, sizeof(destaddr));
 }
 
 static void
-input_segment(receiver_socket_t *sock)
+input_segment(int sd)
 {
     // recvfrom()
 }

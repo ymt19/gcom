@@ -21,23 +21,16 @@ struct receiver_socket_t
 };
 typedef struct receiver_socket_t receiver_socket_t;
 
-struct endpoint_t
+struct addr_list_t
 {
-    uint16_t port;
-    uint32_t addr;
+    sockaddr_in addr;
+    struct addr_list_t *next;
 };
-typedef struct endpoint_t endpoint_t;
-
-struct endpoint_list_t
-{
-    endpoint_t endpoint;
-    struct endpoint_list_t *next;
-};
-typedef struct endpoint_list_t endpoint_list_t;
+typedef struct addr_list_t addr_list_t;
 
 struct dest_info_t
 {
-    ssize_t dest;
-    endpoint_list_t *endpoint_list_head;
+    ssize_t list_len;
+    addr_list_t *addr_list_head;
 };
 typedef struct dest_info_t dest_info_t;
