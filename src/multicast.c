@@ -7,6 +7,9 @@
 
 #define UDP_PAYLOAD_SIZE_MAX 1472
 
+#define FLAG_NAK 0x01
+#define FLAG_ACK 0x02
+
 struct header {
     uint32_t seq;
     uint32_t ack;
@@ -19,14 +22,13 @@ struct header {
 };
 
 static void
-output_segment(int sd, uint32_t seq, uint32_t ack, uint8_t flag, endpoint_t *gn1, endpoint_t *gn2, uint8_t *data, size_t len, endpoint_t *dest)
+output_segment(int sd, uint32_t seq, uint32_t ack, uint8_t flag, endpoint_t *gn1, endpoint_t *gn2, uint8_t *data, ssize_t len, struct sockaddr_in *destaddr)
 {
-    uint8_t buf[UDP_PAYLOAD_SIZE_MAX] = {};
+    uint8_t seg[UDP_PAYLOAD_SIZE_MAX] = {};
     struct header *hdr;
     uint16_t total;
-    struct sockaddr_in destaddr;
 
-    hdr = (struct header *)buf;
+    hdr = (struct header *)seg;
     hdr->seq = seq;
     hdr->ack = ack;
     hdr->flag = flag;
@@ -47,16 +49,18 @@ output_segment(int sd, uint32_t seq, uint32_t ack, uint8_t flag, endpoint_t *gn1
     memcpy(hdr + 1, data, len);
     total = sizeof(*hdr) + len;
 
-    destaddr.sin_family = AF_INET;
-    destaddr.sin_port = dest->port;
-    destaddr.sin_addr.s_addr = dest->addr;
-    sendto(fd, buf, total, 0, (struct sockaddr *)destaddr, sizeof(destaddr));
+    sendto(fd, seg, total, 0, (struct sockaddr *)destaddr, sizeof(*destaddr));
 }
 
 static void
-input_segment(int sd)
+input_segment(int sd, struct header *hdr, uint8_t *data, struct sockaddr_in *srcaddr)
 {
-    // recvfrom()
+    uint8_t seg[UDP_PAYLOAD_SIZE_MAX] = {};
+    ssize_t len;
+
+    len = recvfrom(sd, seg, UDP_PAYLOAD_SIZE_MAX, 0, (struct sockaddr *)srcaddr, sizeof(*srcaddr));
+    memcpy(hdr, seg, sizeof(struct header));
+    memcpy(data, seg + sizeof(struct header), len - sizeof(struct header));
 }
 
 static void
@@ -64,7 +68,7 @@ bg_receiver(receiver_socket_t *sock)
 {
     while (1)
     {
-        // input_segment(1)
+        input_segment(sock->sd);
         // if data ->
         // else if nack ->
         // else if ack ->
@@ -90,16 +94,21 @@ sender_close(sender_socket_t *sock)
 }
 
 ssize_t
-sendto_unicast(sender_socket_t *sock, char *buff, ssize_t len, struct sockaddr_in *destaddr)
+sendto_unicast(sender_socket_t *sock, char *buf, ssize_t len, endpoint_t *dest)
 {
     ssize_t sent = 0;
+    struct sockaddr_in destaddr;
+
+    destaddr.sin_family = AF_INET;
+    destaddr.sin_port = dest->port;
+    destaddr.sin_addr.s_addr = dest->addr;
+
     while (sent < len)
     {
-        // if sent < len
-            // sent += output_segment()
+        sent += output_segment(sock->sd, );
     }
     while (1) {
-        // input_segment(0)
+        input_segment(sock->sd)
         // if nack -> retransmission
         // else if ack -> break
         // else -> error
@@ -108,20 +117,19 @@ sendto_unicast(sender_socket_t *sock, char *buff, ssize_t len, struct sockaddr_i
 }
 
 ssize_t
-sendto_multicast(sender_socket_t *sock, char *buff, ssize_t len, dest_info_t *dest_info)
+sendto_multicast(sender_socket_t *sock, const void *buf, ssize_t len, dest_info_t *dest_info)
 {
     ssize_t sent = 0;
     int recvack = 0;
     while (sent < len)
     {
-        // if sent < len
-            // for dest_addr_list
-                // output_segment()
-            // sent += ??
+        // for dest_addr_list
+            // output_segment()
+        // sent += ??
     }
-    while (recvack > dest_info->dest)
+    while (recvack > dest_info->liset_size)
     {
-        // input_segment(0)
+        input_segment(sock->sd)
         // if nack -> retransmission
         // else if ack
             // recvack++
@@ -157,8 +165,8 @@ receiver_close(receiver_socket_t *sock)
     free(sock);
 }
 
-int
-recvfrom(receiver_socket_t *sock, char *buff, int len, addr_t *src_addr)
+ssize_t
+recvfrom(receiver_socket_t *sock, const void *buff, ssize_t len, addr_t *src_addr)
 {
     while (1)
     {
