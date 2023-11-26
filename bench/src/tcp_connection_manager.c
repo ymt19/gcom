@@ -61,7 +61,7 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
 
             if (recv_msg_info.type == TXLOGACK_MESSAGE) {
                 next_lsn = recv_msg_info.lsn_ack++;
-                fprintf(stderr, "%d lsn ack %d\n", target_id, recv_msg_info.lsn_ack);
+                fprintf(stderr, "%ld lsn ack %d\n", target_id, recv_msg_info.lsn_ack);
             } else {
                 fprintf(stderr, "receive error\n");
                 exit(1);
