@@ -59,9 +59,9 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
             memset(buff, '\0', MAX_SEND_DATA_SIZE);
             msg_len = recv(sd, buff, MAX_SEND_DATA_SIZE, 0);
             get_info_from_message_header(buff, &recv_msg_info);
-            lm_append_receive_message_log(buff, msg_len);
 
             if (recv_msg_info.type == TXLOGACK_MESSAGE) {
+                lm_append_receive_message_log(buff, msg_len);
                 next_lsn = recv_msg_info.lsn_ack+1;
                 // fprintf(stderr, "%ld lsn ack %d\n", target_id, recv_msg_info.lsn_ack);
             } else {
@@ -131,6 +131,7 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
     int cl_addr_len;
     char buff[MAX_SEND_DATA_SIZE];
     int msg_len;
+    int next_lsn;
 
     listen_sd = socket(AF_INET, SOCK_STREAM, 0);
     if(listen_sd < 0)
@@ -167,6 +168,7 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
     }
     fprintf(stdout, "connect\n");
 
+    next_lsn = TXLOG_MIN_LSN;
     while (1)
     {
         msg_info_t recv_msg_info;
@@ -176,16 +178,20 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
         memset(buff, '\0', MAX_SEND_DATA_SIZE);
         msg_len = recv(connection_sd, buff, MAX_SEND_DATA_SIZE, 0);
         get_info_from_message_header(buff, &recv_msg_info);
-        lm_append_receive_message_log(buff, msg_len);
 
         if (recv_msg_info.type == TXLOG_MESSAGE) {
+            lm_append_receive_message_log(buff, msg_len);
             txlm_get_info_from_header(&txlog, buff + MESSAGE_HEADER_SIZE);
             print_txlog_info(&txlog);
             txlm_wirte_log(txlm_config, &txlog, 0);
 
             // ACK返信
             memset(buff, '\0', MAX_SEND_DATA_SIZE);
-            msg_len = create_txlogack_message_header(buff, srv_config->srv_id, recv_msg_info.source_id, txlog.lsn);
+            if (next_lsn == txlog.lsn) {
+                msg_len = create_txlogack_message_header(buff, srv_config->srv_id, recv_msg_info.source_id, txlog.lsn);
+            } else {
+                msg_len = create_txlogack_message_header(buff, srv_config->srv_id, recv_msg_info.source_id, next_lsn);
+            }
             ret = 0;
             while (ret != msg_len) {
                 ret = send(connection_sd, buff, msg_len, 0);
