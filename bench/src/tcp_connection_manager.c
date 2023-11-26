@@ -59,8 +59,8 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
             get_info_from_message_header(buff, &recv_msg_info);
             lm_append_receive_message_log(buff, msg_len);
 
-            if (recv_msg_info.type == TXLOGACK_MESSAGE && recv_msg_info.lsn_ack == next_lsn) {
-                next_lsn++;
+            if (recv_msg_info.type == TXLOGACK_MESSAGE) {
+                next_lsn = recv_msg_info.lsn_ack++;
             } else {
                 fprintf(stderr, "receive error\n");
                 exit(1);
