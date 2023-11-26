@@ -42,6 +42,6 @@ log_manager.o: bench/src/log_manager.c bench/include/log_manager.h
 
 
 clean:
-	rm -rf *.o *.out bin/* *.log *.bin
+	rm -rf *.o *.out bin/* *.csv *.bin
 
 .PHONY: clean
