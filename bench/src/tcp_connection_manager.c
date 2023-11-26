@@ -171,6 +171,7 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
     while (1)
     {
         // DATA受信
+        memset(buff, '\0', MAX_SEND_DATA_SIZE);
         msg_len = recv(connection_sd, buff, MAX_SEND_DATA_SIZE, 0);
         get_info_from_message_header(buff, &recv_msg_info);
         lm_append_receive_message_log(buff, msg_len);
