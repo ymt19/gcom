@@ -48,7 +48,10 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
             msg_len = create_txlog_message_header(buff, srv_config->srv_id, target_id);
             msg_len = msg_len + txlm_read_log(txlm_config, buff + msg_len, next_lsn);
 
-            ret = send(sd, buff, msg_len, 0);
+            ret = 0;
+            while (ret != msg_len) {
+                ret = send(sd, buff, msg_len, 0);
+            }
             lm_append_send_message_log(buff, ret);
 
             /* LOGACKの受信 */
