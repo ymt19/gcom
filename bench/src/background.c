@@ -24,14 +24,13 @@ static void client_worker(client_thread_info_t *info)
     txlm_config_t *txlm_config = info->txlm_config;
     double bench_finish_time = srv_config->system_start_time + srv_config->duration;
     unsigned int lsn;
+    double duration = 1/srv_config->iops; // sec
 
     while (bench_finish_time > get_time())
     {
         lsn = commit(txlm_config, client_id);
         lm_append_commit_tx_log(client_id, lsn);
-        
-        sleep(1);
-        lm_append_response_tx_log(client_id, lsn);
+        usleep(duration * 1000000);
     }
 }
 
