@@ -34,7 +34,6 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
     char buff[MAX_SEND_DATA_SIZE];
     unsigned int msg_len;
     unsigned int next_lsn = TXLOG_MIN_LSN; // 未送信LSNの最小値（送信済みLSNの最大値 + 1）
-    msg_info_t recv_msg_info;
 
     fprintf(stdout, "sender thread id:%zu, ipaddr:%s, port:%d\n",
             target_id,
@@ -43,6 +42,7 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
 
     while (1)
     {
+        msg_info_t recv_msg_info;
         if (txlm_get_current_lsn(txlm_config) >= next_lsn) {
             /* LOGの送信 */
             memset(buff, '\0', MAX_SEND_DATA_SIZE);
@@ -167,12 +167,11 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
     }
     fprintf(stdout, "connect\n");
 
-
-    msg_info_t recv_msg_info;
-    txlog_t txlog;
-
     while (1)
     {
+        msg_info_t recv_msg_info;
+        txlog_t txlog;
+
         // DATA受信
         memset(buff, '\0', MAX_SEND_DATA_SIZE);
         msg_len = recv(connection_sd, buff, MAX_SEND_DATA_SIZE, 0);
