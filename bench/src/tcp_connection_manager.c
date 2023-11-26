@@ -66,7 +66,7 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
                 // fprintf(stderr, "%ld lsn ack %d\n", target_id, recv_msg_info.lsn_ack);
             } else {
                 fprintf(stderr, "receive error\n");
-                exit(1);
+                // exit(1);
             }
         }
     }
@@ -193,7 +193,7 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
             lm_append_send_message_log(buff, msg_len);
         } else {
             fprintf(stderr, "receive error\n");
-            exit(1);
+            // exit(1);
         }
     }
     
