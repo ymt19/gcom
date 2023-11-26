@@ -45,23 +45,25 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
     {
         if (txlm_get_current_lsn(txlm_config) >= next_lsn) {
             /* LOGの送信 */
+            memset(buff, '\0', MAX_SEND_DATA_SIZE);
             msg_len = create_txlog_message_header(buff, srv_config->srv_id, target_id);
             msg_len = msg_len + txlm_read_log(txlm_config, buff + msg_len, next_lsn);
-
             ret = 0;
             while (ret != msg_len) {
                 ret = send(sd, buff, msg_len, 0);
             }
+            // fprintf(stderr, "%ld lsn %d\n", target_id, next_lsn);
             lm_append_send_message_log(buff, ret);
 
             /* LOGACKの受信 */
+            memset(buff, '\0', MAX_SEND_DATA_SIZE);
             msg_len = recv(sd, buff, MAX_SEND_DATA_SIZE, 0);
             get_info_from_message_header(buff, &recv_msg_info);
             lm_append_receive_message_log(buff, msg_len);
 
             if (recv_msg_info.type == TXLOGACK_MESSAGE) {
-                next_lsn = recv_msg_info.lsn_ack++;
-                fprintf(stderr, "%ld lsn ack %d\n", target_id, recv_msg_info.lsn_ack);
+                next_lsn = recv_msg_info.lsn_ack+1;
+                // fprintf(stderr, "%ld lsn ack %d\n", target_id, recv_msg_info.lsn_ack);
             } else {
                 fprintf(stderr, "receive error\n");
                 exit(1);
@@ -183,8 +185,12 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
             txlm_wirte_log(txlm_config, &txlog, 0);
 
             // ACK返信
+            memset(buff, '\0', MAX_SEND_DATA_SIZE);
             msg_len = create_txlogack_message_header(buff, srv_config->srv_id, recv_msg_info.source_id, txlog.lsn);
-            ret = send(connection_sd, buff, msg_len, 0);
+            ret = 0;
+            while (ret != msg_len) {
+                ret = send(connection_sd, buff, msg_len, 0);
+            }
             lm_append_send_message_log(buff, msg_len);
         } else {
             fprintf(stderr, "receive error\n");
