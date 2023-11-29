@@ -54,13 +54,13 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
             msg_info_t recv_msg_info;
             memset(buff, '\0', MAX_SEND_DATA_SIZE);
             msg_len = recv(sd, buff, MAX_SEND_DATA_SIZE, 0);
+            if (msg_len == 0)
+                break;
             lm_append_receive_message_log(buff, msg_len);
 
             get_info_from_message_header(buff, &recv_msg_info);
             if (recv_msg_info.type == TXLOGACK_MESSAGE) {
                 next_lsn = recv_msg_info.lsn_ack + 1;
-            } else {
-                fprintf(stderr, "receive error\n");
             }
         }
     }
@@ -171,6 +171,8 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
         // DATA受信
         memset(buff, '\0', MAX_SEND_DATA_SIZE);
         msg_len = recv(connection_sd, buff, MAX_SEND_DATA_SIZE, 0);
+        if (msg_len == 0)
+            break;
         lm_append_receive_message_log(buff, msg_len);
 
         get_info_from_message_header(buff, &recv_msg_info);
@@ -188,9 +190,6 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
             }
             ret = send(connection_sd, buff, msg_len, 0);
             lm_append_send_message_log(buff, ret);
-        } else {
-            fprintf(stderr, "receive error\n");
-            // exit(1);
         }
     }
     
