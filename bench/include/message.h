@@ -15,7 +15,7 @@ struct message_header
     short type;
     short source_id;
     short destination_id;
-    unsigned int lsn;   // TXLOG_MESSAGE/ACK_MESSAGE
+    unsigned int lsn;   // TXLOG_MESSAGE(LSN) or ACK_MESSAGE(ACK)
 };
 typedef struct message_header message_header;
 
