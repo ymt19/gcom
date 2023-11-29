@@ -2,31 +2,21 @@
 
 enum message_enum
 {
-    ERROR_MESSAGE,
     TXLOG_MESSAGE,
-    TXLOGACK_MESSAGE,
+    ACK_MESSAGE,
     FIN_MESSAGE,
 };
-typedef enum message_enum msg_e;
 
-struct message_info_t
+struct message_header
 {
-    msg_e type;
+    unsigned int size;
+    short type;
     short source_id;
     short destination_id;
-    unsigned int lsn_ack;
+    unsigned int ack;   // 受信したlsnを格納
 };
-typedef struct message_info_t msg_info_t;
+typedef struct message_header message_header;
 
-/* ヘッダオフセット */
-#define MESSAGE_HEADER_OFFSET_TYPE              0
-#define MESSAGE_HEADER_OFFSET_SOURCEID          MESSAGE_HEADER_OFFSET_TYPE + sizeof(short)
-#define MESSAGE_HEADER_OFFSET_DESTINATIONID     MESSAGE_HEADER_OFFSET_SOURCEID + sizeof(short)
-#define MESSAGE_HEADER_OFFSET_LSNACK            MESSAGE_HEADER_OFFSET_DESTINATIONID + sizeof(short)
-#define MESSAGE_HEADER_SIZE                     MESSAGE_HEADER_OFFSET_LSNACK + sizeof(unsigned int)
-
-
-void get_info_from_message_header(char *msg, msg_info_t *msg_info);
-unsigned int create_txlog_message_header(char *msg, short source_id, short destination_id);
-unsigned int create_txlogack_message_header(char *msg, short source_id, short destination_id, unsigned int lsn_ack);
-unsigned int create_fin_message_header(char *msg, short source_id, short destination_id);
+void create_txlog_message_header(char *msg, unsigned int msgsize, short source_id, short destination_id);
+void create_ack_message_header(char *msg, short source_id, short destination_id, unsigned int ack);
+void create_fin_message_header(char *msg, short source_id, short destination_id);

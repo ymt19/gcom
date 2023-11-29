@@ -25,45 +25,54 @@ typedef struct sender_worker_thread_info_t sender_worker_thread_info_t;
 
 static void sender_worker(sender_worker_thread_info_t *worker_info)
 {
-    int ret;
     server_config_t *srv_config = worker_info->srv_config;
     txlm_config_t *txlm_config = worker_info->txlm_config;
     size_t target_id = worker_info->target_id;
-
     int sd = worker_info->sd;
-    char buff[MAX_SEND_DATA_SIZE];
-    unsigned int msg_len;
-    unsigned int next_lsn = TXLOG_MIN_LSN; // 未送信LSNの最小値（送信済みLSNの最大値 + 1）
 
-    fprintf(stdout, "sender thread id:%zu, ipaddr:%s, port:%d\n",
-            target_id,
-            srv_config->srvs_ipaddr[target_id],
-            srv_config->srvs_port[target_id]);
+    /****************** Senderプロトコル ******************/
+    int ret;
+    char buff[MAX_SEND_DATA_SIZE];
+    unsigned int msgsize;
+    unsigned int nextlsn = TXLOG_MIN_LSN; // 未送信LSNの最小値（送信済みLSNの最大値 + 1）
+    message_header recvhdr;
 
     while (1)
     {
-        if (txlm_get_current_lsn(txlm_config) >= next_lsn) {
-            /* LOGの送信 */
-            memset(buff, '\0', MAX_SEND_DATA_SIZE);
-            msg_len = create_txlog_message_header(buff, srv_config->srv_id, target_id);
-            msg_len = msg_len + txlm_read_log(txlm_config, buff + msg_len, next_lsn);
-            ret = send(sd, buff, msg_len, 0);
-            lm_append_send_message_log(buff, ret);
+        if (txlm_get_current_lsn(txlm_config) >= nextlsn) {
+            /* TXLOGメッセージ生成 */
+            msgsize = sizeof(message_header) + txlm_read_log(txlm_config, buff + sizeof(message_header), nextlsn);
+            create_txlog_message_header(buff, msgsize, srv_config->srv_id, target_id);
+            
+            /* TXLOGメッセージ送信 */
+            ret = 0;
+            while (ret < msgsize) {
+                ret += send(sd, buff, msgsize - ret, 0);
+            }
+            lm_append_send_message_log(buff, msgsize);
 
-            /* LOGACKの受信 */
-            msg_info_t recv_msg_info;
-            memset(buff, '\0', MAX_SEND_DATA_SIZE);
-            msg_len = recv(sd, buff, MAX_SEND_DATA_SIZE, 0);
-            if (msg_len == 0)
-                break;
-            lm_append_receive_message_log(buff, msg_len);
+            /* メッセージ受信 */
+            msgsize = 0;
+            while (msgsize < sizeof(message_header)) {
+                msgsize += recv(sd, buff, MAX_SEND_DATA_SIZE - msgsize, 0);
+            }
+            memcpy(&recvhdr, buff, sizeof(message_header));
+            while (msgsize < recvhdr.size) {
+                msgsize += recv(sd, buff, MAX_SEND_DATA_SIZE - msgsize, 0);
+            }
+            lm_append_receive_message_log(buff, msgsize);
 
-            get_info_from_message_header(buff, &recv_msg_info);
-            if (recv_msg_info.type == TXLOGACK_MESSAGE) {
-                next_lsn = recv_msg_info.lsn_ack + 1;
+            /* メッセージタイプごとの処理 */
+            if (recvhdr.type == ACK_MESSAGE) {
+                nextlsn = recvhdr.ack + 1;
+            } else {
+                fprintf(stderr, "RECV ERROR MESSAGE");
             }
         }
     }
+    /***************************************************/
+
+    close(sd);
 }
 
 void sender_main(server_config_t *srv_config, txlm_config_t *txlm_config)
@@ -123,9 +132,6 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
     struct sockaddr_in sv_addr;
     struct sockaddr_in cl_addr;
     int cl_addr_len;
-    char buff[MAX_SEND_DATA_SIZE];
-    int msg_len;
-    int next_lsn;
 
     listen_sd = socket(AF_INET, SOCK_STREAM, 0);
     if(listen_sd < 0)
@@ -162,35 +168,50 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
     }
     fprintf(stdout, "connect\n");
 
-    next_lsn = TXLOG_MIN_LSN;
+
+
+    /****************** Recieverプロトコル ******************/
+    char buff[MAX_SEND_DATA_SIZE];
+    int msgsize;
+    message_header recvhdr;
+    txlog_t txlog;
+    int ack;
+
     while (1)
     {
-        msg_info_t recv_msg_info;
-        txlog_t txlog;
+        /* メッセージ受信 */
+        msgsize = 0;
+        while (msgsize < sizeof(message_header)) {
+            msgsize += recv(connection_sd, buff, MAX_SEND_DATA_SIZE - msgsize, 0);
+        }
+        memcpy(&recvhdr, buff, sizeof(message_header));
+        while (msgsize < recvhdr.size) {
+            msgsize += recv(connection_sd, buff, MAX_SEND_DATA_SIZE - msgsize, 0);
+        }
+        lm_append_receive_message_log(buff, msgsize);
 
-        // DATA受信
-        memset(buff, '\0', MAX_SEND_DATA_SIZE);
-        msg_len = recv(connection_sd, buff, MAX_SEND_DATA_SIZE, 0);
-        if (msg_len == 0)
-            break;
-        lm_append_receive_message_log(buff, msg_len);
-
-        get_info_from_message_header(buff, &recv_msg_info);
-        if (recv_msg_info.type == TXLOG_MESSAGE) {
-            txlm_get_info_from_header(&txlog, buff + MESSAGE_HEADER_SIZE);
+        /* メッセージタイプごとの処理 */
+        if (recvhdr.type == TXLOG_MESSAGE) {
+            txlm_get_info_from_header(&txlog, buff + sizeof(message_header));
             print_txlog_info(&txlog);
             txlm_wirte_log(txlm_config, &txlog, 0);
 
-            // ACK返信
-            memset(buff, '\0', MAX_SEND_DATA_SIZE);
-            if (next_lsn == txlog.lsn) {
-                msg_len = create_txlogack_message_header(buff, srv_config->srv_id, recv_msg_info.source_id, txlog.lsn);
-            } else {
-                msg_len = create_txlogack_message_header(buff, srv_config->srv_id, recv_msg_info.source_id, next_lsn);
+            /* ACKメッセージ生成 */
+            msgsize = sizeof(message_header);
+            create_ack_message_header(buff, srv_config->srv_id, recvhdr.source_id, txlog.lsn);
+
+            /* ACKメッセージ送信 */
+            ret = 0;
+            while (ret < msgsize) {
+                ret += send(connection_sd, buff, msgsize - ret, 0);
             }
-            ret = send(connection_sd, buff, msg_len, 0);
-            lm_append_send_message_log(buff, ret);
+            lm_append_send_message_log(buff, msgsize);
+        } else {
+            fprintf(stderr, "RECV ERROR MESSAGE");
         }
     }
-    
+    /******************************************************/
+
+    close(connection_sd);
+    close(listen_sd);
 }

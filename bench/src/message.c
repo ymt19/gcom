@@ -3,45 +3,35 @@
 
 #include "message.h"
 
-void get_info_from_message_header(char *msg, msg_info_t *msg_info)
+void create_txlog_message_header(char *msg, unsigned int msgsize, short source_id, short destination_id)
 {
-    memcpy(&msg_info->type, msg + MESSAGE_HEADER_OFFSET_TYPE, sizeof(short));
-    memcpy(&msg_info->source_id, msg + MESSAGE_HEADER_OFFSET_SOURCEID, sizeof(short));
-    memcpy(&msg_info->destination_id, msg + MESSAGE_HEADER_OFFSET_DESTINATIONID, sizeof(short));
-    memcpy(&msg_info->lsn_ack, msg + MESSAGE_HEADER_OFFSET_LSNACK, sizeof(unsigned int));
+    message_header hdr;
+    hdr.size = msgsize;
+    hdr.type = (short)TXLOG_MESSAGE;
+    hdr.source_id = source_id;
+    hdr.destination_id = destination_id;
+    hdr.ack = -1;
+    memcpy(msg, &hdr, sizeof(message_header));
 }
 
-unsigned int create_txlog_message_header(char *msg, short source_id, short destination_id)
+void create_ack_message_header(char *msg, short source_id, short destination_id, unsigned int ack)
 {
-    msg_e type = TXLOG_MESSAGE;
-    unsigned int lsn_ack = -1;
-
-    memcpy(msg + MESSAGE_HEADER_OFFSET_TYPE, &type, sizeof(short));
-    memcpy(msg + MESSAGE_HEADER_OFFSET_SOURCEID, &source_id, sizeof(short));
-    memcpy(msg + MESSAGE_HEADER_OFFSET_DESTINATIONID, &destination_id, sizeof(short));
-    memcpy(msg + MESSAGE_HEADER_OFFSET_LSNACK, &lsn_ack, sizeof(unsigned int));
-    return MESSAGE_HEADER_SIZE;
+    message_header hdr;
+    hdr.size = sizeof(message_header);
+    hdr.type = (short)ACK_MESSAGE;
+    hdr.source_id = source_id;
+    hdr.destination_id = destination_id;
+    hdr.ack = ack;
+    memcpy(msg, &hdr, sizeof(message_header));
 }
 
-unsigned int create_txlogack_message_header(char *msg, short source_id, short destination_id, unsigned int lsn_ack)
+void create_fin_message_header(char *msg, short source_id, short destination_id)
 {
-    msg_e type = TXLOGACK_MESSAGE;
-
-    memcpy(msg + MESSAGE_HEADER_OFFSET_TYPE, &type, sizeof(short));
-    memcpy(msg + MESSAGE_HEADER_OFFSET_SOURCEID, &source_id, sizeof(short));
-    memcpy(msg + MESSAGE_HEADER_OFFSET_DESTINATIONID, &destination_id, sizeof(short));
-    memcpy(msg + MESSAGE_HEADER_OFFSET_LSNACK, &lsn_ack, sizeof(unsigned int));
-    return MESSAGE_HEADER_SIZE;
-}
-
-unsigned int create_fin_message_header(char *msg, short source_id, short destination_id)
-{
-    msg_e type = FIN_MESSAGE;
-    unsigned int lsn_ack = -1;
-
-    memcpy(msg + MESSAGE_HEADER_OFFSET_TYPE, &type, sizeof(short));
-    memcpy(msg + MESSAGE_HEADER_OFFSET_SOURCEID, &source_id, sizeof(short));
-    memcpy(msg + MESSAGE_HEADER_OFFSET_DESTINATIONID, &destination_id, sizeof(short));
-    memcpy(msg + MESSAGE_HEADER_OFFSET_LSNACK, &lsn_ack, sizeof(unsigned int));
-    return MESSAGE_HEADER_SIZE;
+    message_header hdr;
+    hdr.size = sizeof(message_header);
+    hdr.type = (short)FIN_MESSAGE;
+    hdr.source_id = source_id;
+    hdr.destination_id = destination_id;
+    hdr.ack = -1;
+    memcpy(msg, &hdr, sizeof(message_header));
 }
