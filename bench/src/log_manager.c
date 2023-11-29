@@ -20,16 +20,16 @@ void lm_deinit()
     fclose(logfile_fp);
 }
 
-void lm_append_send_message_log(char *msg)
+void lm_append_send_message_log(char *msg, int size)
 {
     message_header *hdr = (message_header *)msg;
-    fprintf(logfile_fp, "SEND_MESSAGE,%lf,%d,%d,%d,%d,%d\n", get_time(), hdr->size, hdr->type, hdr->source_id, hdr->destination_id, hdr->ack);
+    fprintf(logfile_fp, "SEND_MESSAGE,%lf,%d,%d,%d,%d,%d\n", get_time(), size, hdr->type, hdr->source_id, hdr->destination_id, hdr->ack);
 }
 
-void lm_append_receive_message_log(char *msg)
+void lm_append_receive_message_log(char *msg, int size)
 {
     message_header *hdr = (message_header *)msg;
-    fprintf(logfile_fp, "RECEIVE_MESSAGE,%lf,%d,%d,%d,%d,%d\n", get_time(), hdr->size, hdr->type, hdr->source_id, hdr->destination_id, hdr->ack);
+    fprintf(logfile_fp, "RECEIVE_MESSAGE,%lf,%d,%d,%d,%d,%d\n", get_time(), size, hdr->type, hdr->source_id, hdr->destination_id, hdr->ack);
 }
 
 void lm_append_commit_tx_log(short client_id, unsigned int lsn)

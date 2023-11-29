@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
     /*************************/
 
     /**** tx log mamanger起動 ****/
-    txlm_config_t *txlm_config = txlm_init(srv_config->srv_id, srv_config->send_log_size - (MESSAGE_HEADER_SIZE));
+    txlm_config_t *txlm_config = txlm_init(srv_config->srv_id, srv_config->send_log_size - sizeof(message_header));
     /****************************/
 
     /**** connection manager ****/

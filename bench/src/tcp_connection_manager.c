@@ -49,7 +49,7 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
             while (ret < msgsize) {
                 ret += send(sd, buff, msgsize - ret, 0);
             }
-            lm_append_send_message_log(buff, msgsize);
+            lm_append_send_message_log(buff, ret);
 
             /* メッセージ受信 */
             msgsize = 0;
@@ -175,7 +175,6 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
     int msgsize;
     message_header recvhdr;
     txlog_t txlog;
-    int ack;
 
     while (1)
     {
