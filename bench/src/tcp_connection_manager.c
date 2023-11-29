@@ -54,11 +54,11 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
             /* メッセージ受信 */
             msgsize = 0;
             while (msgsize < sizeof(message_header)) {
-                msgsize += recv(sd, buff, MAX_SEND_DATA_SIZE - msgsize, 0);
+                msgsize += recv(sd, buff + msgsize, MAX_SEND_DATA_SIZE - msgsize, 0);
             }
             memcpy(&recvhdr, buff, sizeof(message_header));
             while (msgsize < recvhdr.size) {
-                msgsize += recv(sd, buff, MAX_SEND_DATA_SIZE - msgsize, 0);
+                msgsize += recv(sd, buff + msgsize, MAX_SEND_DATA_SIZE - msgsize, 0);
             }
             lm_append_receive_message_log(buff, msgsize);
 
