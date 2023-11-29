@@ -55,6 +55,7 @@ int main(void)
 
     for (int i = 0; i < 100; i++) {
         memset(buff, '\0', MAXSIZE);
+        msg_len = 0;
         while (msg_len != MAXSIZE) {
             msg_len = recv(connection_sd, buff + msg_len, MAXSIZE - msg_len, 0);
         }
