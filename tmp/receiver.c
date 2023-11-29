@@ -57,7 +57,7 @@ int main(void)
         memset(buff, '\0', MAXSIZE);
         msg_len = 0;
         while (msg_len != MAXSIZE) {
-            msg_len = recv(connection_sd, buff + msg_len, MAXSIZE - msg_len, 0);
+            msg_len += recv(connection_sd, buff + msg_len, MAXSIZE - msg_len, 0);
         }
         printf("%d recv:%d %s\n", i, msg_len, buff);
     }
