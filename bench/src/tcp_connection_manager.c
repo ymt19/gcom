@@ -47,7 +47,7 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
             /* TXLOGメッセージ送信 */
             ret = 0;
             while (ret < msgsize) {
-                ret += send(sd, buff, msgsize - ret, 0);
+                ret += send(sd, buff + ret, msgsize - ret, 0);
             }
             lm_append_send_message_log(buff, ret);
 
@@ -181,11 +181,11 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
         /* メッセージ受信 */
         msgsize = 0;
         while (msgsize < sizeof(message_header)) {
-            msgsize += recv(connection_sd, buff, MAX_SEND_DATA_SIZE - msgsize, 0);
+            msgsize += recv(connection_sd, buff + msgsize, MAX_SEND_DATA_SIZE - msgsize, 0);
         }
         memcpy(&recvhdr, buff, sizeof(message_header));
         while (msgsize < recvhdr.size) {
-            msgsize += recv(connection_sd, buff, MAX_SEND_DATA_SIZE - msgsize, 0);
+            msgsize += recv(connection_sd, buff + msgsize, MAX_SEND_DATA_SIZE - msgsize, 0);
         }
         lm_append_receive_message_log(buff, msgsize);
 
@@ -202,7 +202,7 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
             /* ACKメッセージ送信 */
             ret = 0;
             while (ret < msgsize) {
-                ret += send(connection_sd, buff, msgsize - ret, 0);
+                ret += send(connection_sd, buff + ret, msgsize - ret, 0);
             }
             lm_append_send_message_log(buff, msgsize);
         } else {
