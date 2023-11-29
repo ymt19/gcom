@@ -25,7 +25,7 @@ int main(void)
 
     sv_addr.sin_family = AF_INET;
     sv_addr.sin_addr.s_addr = INADDR_ANY;
-    sv_addr.sin_port = htons(port);
+    sv_addr.sin_port = htons(10000);
 
     ret = bind(listen_sd, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
     if(ret != 0)
@@ -49,7 +49,9 @@ int main(void)
         exit(1);
     }
 
-    memset(buff, -1, MAXSIZE);
-    msg_len = recv(connection_sd, buff, MAX_SEND_DATA_SIZE, 0);
-    printf("recv:%d\n", msg_len);
+
+    for (int i = 0; i < 100; i++) {
+        msg_len = recv(connection_sd, buff, MAX_SEND_DATA_SIZE, 0);
+        printf("%d recv:%d\n", i, msg_len);
+    }
 }
