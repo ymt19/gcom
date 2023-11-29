@@ -36,13 +36,14 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
     unsigned int msgsize;
     unsigned int nextlsn = TXLOG_MIN_LSN; // 未送信LSNの最小値（送信済みLSNの最大値 + 1）
     message_header recvhdr;
+    txlog_t txlog;
 
     while (1)
     {
         if (txlm_get_current_lsn(txlm_config) >= nextlsn) {
             /* TXLOGメッセージ生成 */
-            msgsize = sizeof(message_header) + txlm_read_log(txlm_config, buff + sizeof(message_header), nextlsn);
-            create_txlog_message_header(buff, msgsize, srv_config->srv_id, target_id, nextlsn);
+            txlm_read_log(txlm_config, &txlog, nextlsn);
+            msgsize = create_txlog_message(buff, srv_config->srv_id, target_id, &txlog);
             
             /* TXLOGメッセージ送信 */
             ret = 0;
@@ -191,13 +192,13 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
 
         /* メッセージタイプごとの処理 */
         if (recvhdr.type == TXLOG_MESSAGE) {
-            txlm_get_info_from_header(&txlog, buff + sizeof(message_header));
+            memcpy(&txlog, buff + sizeof(message_header), sizeof(txlog_t));
             print_txlog_info(&txlog);
-            txlm_wirte_log(txlm_config, &txlog, 0);
+            txlm_wirte_log(txlm_config, &txlog);
 
             /* ACKメッセージ生成 */
             msgsize = sizeof(message_header);
-            create_ack_message_header(buff, srv_config->srv_id, recvhdr.source_id, txlog.lsn);
+            create_ack_message(buff, srv_config->srv_id, recvhdr.source_id, txlog.lsn);
 
             /* ACKメッセージ送信 */
             ret = 0;

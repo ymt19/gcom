@@ -11,10 +11,6 @@ static int get_log_offset(unsigned int lsn);
 
 txlm_config_t *txlm_init(size_t server_id, unsigned int log_size)
 {
-    if (log_size < TXLOG_HEADER_SIZE) {
-        return NULL;
-    }
-
     txlm_config_t *txlm_config = malloc(sizeof(txlm_config_t));
 
     sprintf(txlm_config->filename, "txlog_srv%ld.bin", server_id);
@@ -37,7 +33,7 @@ void txlm_deinit(txlm_config_t *txlm_config)
 
 void print_txlog_info(txlog_t *txlog)
 {
-    fprintf(stdout, "[txlog] lsn:%d, clientid:%d, appendtime:%lf, writetime:%lf, datasize:%d\n", txlog->lsn, txlog->client_id, txlog->append_time, txlog->write_time, txlog->data_size);
+    fprintf(stdout, "[txlog] lsn:%d, clientid:%d, appendtime:%lf, writetime:%lf, logsize:%d\n", txlog->lsn, txlog->client_id, txlog->append_time, txlog->write_time, txlog->log_size);
 }
 
 size_t txlm_get_current_lsn(txlm_config_t *txlm_config)
@@ -49,16 +45,18 @@ size_t txlm_get_current_lsn(txlm_config_t *txlm_config)
     return current_lsn;
 }
 
+/**
+ * Primaryサーバのクライアントインタフェースが呼び出す
+*/
 void txlm_append_log(txlm_config_t *txlm_config, txlog_t *txlog, unsigned short client_id)
 {
     pthread_mutex_lock(&txlm_config->mutex_lsn);        // lock
     txlog->lsn = txlm_config->latest_lsn+1;
     txlog->client_id = client_id;
-    txlog->append_time = -1;
-    txlog->write_time = -1;
-    txlog->data_size = txlm_config->log_size - (TXLOG_HEADER_SIZE);
+    txlog->append_time = get_time();
+    txlog->log_size = txlm_config->log_size;
 
-    txlm_wirte_log(txlm_config, txlog, 1);
+    txlm_wirte_log(txlm_config, txlog);
     txlm_config->latest_lsn++;
     pthread_mutex_unlock(&txlm_config->mutex_lsn);      // unlock
 }
@@ -66,60 +64,42 @@ void txlm_append_log(txlm_config_t *txlm_config, txlog_t *txlog, unsigned short 
 /**
  * ヘッダと実データ（0埋め）のバイナリ列を生成
 */
-size_t txlm_read_log(txlm_config_t *txlm_config, char *log_data, size_t lsn)
+void txlm_read_log(txlm_config_t *txlm_config, txlog_t *txlog, size_t lsn)
 {
     FILE *fp;
     int offset = get_log_offset(lsn);
 
+    /* バイナリファイル読み込み */
     fp = fopen(txlm_config->filename, "rb");
     if (fp == NULL) {
         fprintf(stderr, "fopen():%s\n", strerror(errno));
     }
     fseek(fp, offset, SEEK_SET);
-    fread(log_data, sizeof(char), TXLOG_HEADER_SIZE, fp);
+    fread(txlog, sizeof(txlog_t), 1, fp);
     fclose(fp);
-
-    return txlm_config->log_size;
 }
 
 /**
  * 各txlogのヘッダのみファイル出力
 */
-void txlm_wirte_log(txlm_config_t *txlm_config, txlog_t *txlog, int set_append_time_flag)
+void txlm_wirte_log(txlm_config_t *txlm_config, txlog_t *txlog)
 {
     FILE *fp;
-    char header[TXLOG_HEADER_SIZE];
     int offset = get_log_offset(txlog->lsn);
 
     txlog->write_time = get_time();
-    if (set_append_time_flag) {
-        txlog->append_time = txlog->write_time;
-    }
 
-    memcpy(header + TXLOG_HEADER_OFFSET_LSN, &txlog->lsn, sizeof(unsigned int));
-    memcpy(header + TXLOG_HEADER_OFFSET_CLIENTID, &txlog->client_id, sizeof(unsigned int));
-    memcpy(header + TXLOG_HEADER_OFFSET_APPENDTIME, &txlog->append_time, sizeof(double));
-    memcpy(header + TXLOG_HEADER_OFFSET_WRITETIME, &txlog->write_time, sizeof(double));
-    memcpy(header + TXLOG_HEADER_OFFSET_DATASIZE, &txlog->data_size, sizeof(unsigned int));
-
+    /* バイナリファイル書き込み */
     fp = fopen(txlm_config->filename, "wb");
     fseek(fp, offset, SEEK_SET);
-    fwrite(header, sizeof(char), TXLOG_HEADER_SIZE, fp);
+    fwrite(txlog, sizeof(txlog_t), 1, fp);
     fclose(fp);
 
+    /* ログ書き込み */
     lm_append_write_txlog_log(txlog);
-}
-
-void txlm_get_info_from_header(txlog_t *log, char *header)
-{
-    memcpy(&log->lsn, header + TXLOG_HEADER_OFFSET_LSN, sizeof(unsigned int));
-    memcpy(&log->client_id, header + TXLOG_HEADER_OFFSET_CLIENTID, sizeof(short));
-    memcpy(&log->append_time, header + TXLOG_HEADER_OFFSET_APPENDTIME, sizeof(double));
-    memcpy(&log->write_time, header + TXLOG_HEADER_OFFSET_WRITETIME, sizeof(double));
-    memcpy(&log->data_size, header + TXLOG_HEADER_OFFSET_DATASIZE, sizeof(unsigned int));
 }
 
 static int get_log_offset(unsigned int lsn)
 {
-    return (lsn - 1) * TXLOG_HEADER_SIZE;
+    return (lsn - 1) * sizeof(txlog_t);
 }

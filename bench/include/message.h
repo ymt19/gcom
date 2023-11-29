@@ -1,5 +1,7 @@
 #pragma once
 
+#include "txlog_manager.h"
+
 enum message_enum
 {
     TXLOG_MESSAGE,
@@ -17,6 +19,6 @@ struct message_header
 };
 typedef struct message_header message_header;
 
-void create_txlog_message_header(char *msg, unsigned int msgsize, short source_id, short destination_id, unsigned int lsn);
-void create_ack_message_header(char *msg, short source_id, short destination_id, unsigned int ack);
-void create_fin_message_header(char *msg, short source_id, short destination_id);
+unsigned int create_txlog_message(char *msg, short source_id, short destination_id, txlog_t *txlog);
+unsigned int create_ack_message(char *msg, short source_id, short destination_id, unsigned int ack);
+unsigned int create_fin_message(char *msg, short source_id, short destination_id);
