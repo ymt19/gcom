@@ -1,4 +1,7 @@
+#include <errno.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -13,7 +16,7 @@ int main(void)
     struct sockaddr_in sv_addr;
     struct sockaddr_in cl_addr;
     int cl_addr_len;
-    char buff[MAX_SEND_DATA_SIZE];
+    char buff[MAXSIZE];
     int msg_len;
 
     listen_sd = socket(AF_INET, SOCK_STREAM, 0);
@@ -51,7 +54,7 @@ int main(void)
 
 
     for (int i = 0; i < 100; i++) {
-        msg_len = recv(connection_sd, buff, MAX_SEND_DATA_SIZE, 0);
+        msg_len = recv(connection_sd, buff, MAXSIZE, 0);
         printf("%d recv:%d\n", i, msg_len);
     }
 }
