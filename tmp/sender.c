@@ -24,6 +24,8 @@ int main(void)
     ret = connect(sd, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
 
     for (int i = 0; i < 100; i++) {
+        memset(buff, '\0', MAXSIZE);
+        snprintf(buff, MAXSIZE, "%d\n", i);
         ret = send(sd, buff, MAXSIZE, 0);
         printf("%d send:%d\n", i, ret);
     }

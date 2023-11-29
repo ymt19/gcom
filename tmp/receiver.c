@@ -55,6 +55,6 @@ int main(void)
 
     for (int i = 0; i < 100; i++) {
         msg_len = recv(connection_sd, buff, MAXSIZE, 0);
-        printf("%d recv:%d\n", i, msg_len);
+        printf("%d recv:%d %s\n", i, msg_len, buff);
     }
 }
