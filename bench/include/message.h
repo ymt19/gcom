@@ -13,10 +13,10 @@ struct message_header
     short type;
     short source_id;
     short destination_id;
-    unsigned int ack;   // 受信したlsnを格納
+    unsigned int lsn;   // TXLOG_MESSAGE/ACK_MESSAGE
 };
 typedef struct message_header message_header;
 
-void create_txlog_message_header(char *msg, unsigned int msgsize, short source_id, short destination_id);
+void create_txlog_message_header(char *msg, unsigned int msgsize, short source_id, short destination_id, unsigned int lsn);
 void create_ack_message_header(char *msg, short source_id, short destination_id, unsigned int ack);
 void create_fin_message_header(char *msg, short source_id, short destination_id);

@@ -42,7 +42,7 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
         if (txlm_get_current_lsn(txlm_config) >= nextlsn) {
             /* TXLOGメッセージ生成 */
             msgsize = sizeof(message_header) + txlm_read_log(txlm_config, buff + sizeof(message_header), nextlsn);
-            create_txlog_message_header(buff, msgsize, srv_config->srv_id, target_id);
+            create_txlog_message_header(buff, msgsize, srv_config->srv_id, target_id, nextlsn);
             
             /* TXLOGメッセージ送信 */
             ret = 0;
@@ -64,7 +64,7 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
 
             /* メッセージタイプごとの処理 */
             if (recvhdr.type == ACK_MESSAGE) {
-                nextlsn = recvhdr.ack + 1;
+                nextlsn = recvhdr.lsn + 1;
             } else {
                 fprintf(stderr, "RECV ERROR MESSAGE");
             }
