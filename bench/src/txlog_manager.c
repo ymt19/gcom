@@ -75,7 +75,9 @@ void txlm_read_log(txlm_config_t *txlm_config, txlog_t *txlog, size_t lsn)
         fprintf(stderr, "fopen():%s\n", strerror(errno));
     }
     fseek(fp, offset, SEEK_SET);
-    fread(txlog, sizeof(txlog_t), 1, fp);
+    if (fread(txlog, sizeof(txlog_t), 1, fp) != 1) {
+        fprintf(stderr, "fwrite():%s\n", strerror(errno));
+    }
     fclose(fp);
 
     lm_append_read_txlog_log(offset, txlog);
@@ -92,12 +94,13 @@ void txlm_wirte_log(txlm_config_t *txlm_config, txlog_t *txlog)
     txlog->write_time = get_time();
 
     /* バイナリファイル書き込み */
-    fp = fopen(txlm_config->filename, "wb");
-    if (fp == NULL) {
+    if ((fp = fopen(txlm_config->filename, "wb")) == NULL) {
         fprintf(stderr, "fopen():%s\n", strerror(errno));
     }
     fseek(fp, offset, SEEK_SET);
-    fwrite(txlog, sizeof(txlog_t), 1, fp);
+    if (fwrite(txlog, sizeof(txlog_t), 1, fp) != 1) {
+        fprintf(stderr, "fwrite():%s\n", strerror(errno));
+    }
     fclose(fp);
 
     /* ログ書き込み */
