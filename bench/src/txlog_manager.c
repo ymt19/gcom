@@ -56,7 +56,7 @@ void txlm_append_log(txlm_config_t *txlm_config, txlog_t *txlog, unsigned short 
     txlog->append_time = get_time();
     txlog->log_size = txlm_config->log_size;
 
-    txlm_wirte_log(txlm_config, txlog);
+    txlm_write_log(txlm_config, txlog);
     txlm_config->latest_lsn++;
     pthread_mutex_unlock(&txlm_config->mutex_lsn);      // unlock
 }
@@ -86,7 +86,7 @@ void txlm_read_log(txlm_config_t *txlm_config, txlog_t *txlog, size_t lsn)
 /**
  * 各txlogのヘッダのみファイル出力
 */
-void txlm_wirte_log(txlm_config_t *txlm_config, txlog_t *txlog)
+void txlm_write_log(txlm_config_t *txlm_config, txlog_t *txlog)
 {
     FILE *fp;
     int offset = get_log_offset(txlog->lsn);

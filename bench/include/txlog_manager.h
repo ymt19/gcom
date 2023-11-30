@@ -30,5 +30,5 @@ void print_txlog_info(txlog_t *txlog);
 size_t txlm_get_current_lsn(txlm_config_t *txlm_config);
 void txlm_append_log(txlm_config_t *txlm_config, txlog_t *txlog, unsigned short client_id);
 void txlm_read_log(txlm_config_t *txlm_config, txlog_t *txlog, size_t lsn);
-void txlm_wirte_log(txlm_config_t *txlm_config, txlog_t *txlog);
+void txlm_write_log(txlm_config_t *txlm_config, txlog_t *txlog);
 void txlm_get_info_from_header(txlog_t *log, char *header);
