@@ -91,6 +91,9 @@ void txlm_wirte_log(txlm_config_t *txlm_config, txlog_t *txlog)
 
     /* バイナリファイル書き込み */
     fp = fopen(txlm_config->filename, "wb");
+    if (fp == NULL) {
+        fprintf(stderr, "fopen():%s\n", strerror(errno));
+    }
     fseek(fp, offset, SEEK_SET);
     fwrite(txlog, sizeof(txlog_t), 1, fp);
     fclose(fp);
