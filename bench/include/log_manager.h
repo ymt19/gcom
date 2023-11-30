@@ -12,3 +12,4 @@ void lm_append_receive_message_log(char *msg, int size);
 void lm_append_commit_tx_log(short client_id, unsigned int lsn);
 void lm_append_response_tx_log(short client_id, unsigned int lsn);
 void lm_append_write_txlog_log(txlog_t *txlog);
+void lm_append_read_txlog_log(txlog_t *txlog);

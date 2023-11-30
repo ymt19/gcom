@@ -77,6 +77,8 @@ void txlm_read_log(txlm_config_t *txlm_config, txlog_t *txlog, size_t lsn)
     fseek(fp, offset, SEEK_SET);
     fread(txlog, sizeof(txlog_t), 1, fp);
     fclose(fp);
+
+    lm_append_read_txlog_log(txlog);
 }
 
 /**

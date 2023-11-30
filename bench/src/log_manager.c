@@ -46,3 +46,8 @@ void lm_append_write_txlog_log(txlog_t *txlog)
 {
     fprintf(logfile_fp, "WRITE_TXLOG,%lf,%d,%d,%lf,%lf,%d\n", get_time(), txlog->lsn, txlog->client_id, txlog->append_time, txlog->write_time, txlog->log_size);
 }
+
+void lm_append_read_txlog_log(txlog_t *txlog)
+{
+    fprintf(logfile_fp, "READ_TXLOG,%lf,%d,%d,%lf,%lf,%d\n", get_time(), txlog->lsn, txlog->client_id, txlog->append_time, txlog->write_time, txlog->log_size);
+}
