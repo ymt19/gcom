@@ -101,6 +101,7 @@ void txlm_write_log(txlm_config_t *txlm_config, txlog_t *txlog)
     if (fwrite(txlog, sizeof(txlog_t), 1, fp) != 1) {
         fprintf(stderr, "fwrite():%s\n", strerror(errno));
     }
+    fflush(fp);
     fclose(fp);
 
     /* ログ書き込み */
