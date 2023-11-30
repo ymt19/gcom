@@ -76,7 +76,7 @@ void txlm_read_log(txlm_config_t *txlm_config, txlog_t *txlog, size_t lsn)
     }
     fseek(fp, offset, SEEK_SET);
     if (fread(txlog, sizeof(txlog_t), 1, fp) != 1) {
-        fprintf(stderr, "fwrite():%s\n", strerror(errno));
+        fprintf(stderr, "fread():%s\n", strerror(errno));
     }
     fclose(fp);
 
