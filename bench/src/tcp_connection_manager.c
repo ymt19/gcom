@@ -195,7 +195,7 @@ void reciever_main(server_config_t *srv_config, txlm_config_t *txlm_config)
         if (recvhdr.type == TXLOG_MESSAGE) {
             memcpy(&txlog, buff + sizeof(message_header), sizeof(txlog_t));
             print_txlog_info(&txlog);
-            txlm_wirte_log(txlm_config, &txlog);
+            txlm_write_log(txlm_config, &txlog);
 
             /* ACKメッセージ生成 */
             msgsize = sizeof(message_header);
