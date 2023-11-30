@@ -42,12 +42,12 @@ void lm_append_response_tx_log(short client_id, unsigned int lsn)
     fprintf(logfile_fp, "RESPONSE_TX,%lf,%d,%d\n", get_time(), client_id, lsn);
 }
 
-void lm_append_write_txlog_log(txlog_t *txlog)
+void lm_append_write_txlog_log(int offset, txlog_t *txlog)
 {
-    fprintf(logfile_fp, "WRITE_TXLOG,%lf,%d,%d,%lf,%lf,%d\n", get_time(), txlog->lsn, txlog->client_id, txlog->append_time, txlog->write_time, txlog->log_size);
+    fprintf(logfile_fp, "WRITE_TXLOG,%lf,%d,%d,%d,%lf,%lf,%d\n", get_time(), offset, txlog->lsn, txlog->client_id, txlog->append_time, txlog->write_time, txlog->log_size);
 }
 
-void lm_append_read_txlog_log(txlog_t *txlog)
+void lm_append_read_txlog_log(int offset, txlog_t *txlog)
 {
-    fprintf(logfile_fp, "READ_TXLOG,%lf,%d,%d,%lf,%lf,%d\n", get_time(), txlog->lsn, txlog->client_id, txlog->append_time, txlog->write_time, txlog->log_size);
+    fprintf(logfile_fp, "READ_TXLOG,%lf,%d,%d,%d,%lf,%lf,%d\n", get_time(), offset, txlog->lsn, txlog->client_id, txlog->append_time, txlog->write_time, txlog->log_size);
 }

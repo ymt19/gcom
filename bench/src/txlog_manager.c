@@ -78,7 +78,7 @@ void txlm_read_log(txlm_config_t *txlm_config, txlog_t *txlog, size_t lsn)
     fread(txlog, sizeof(txlog_t), 1, fp);
     fclose(fp);
 
-    lm_append_read_txlog_log(txlog);
+    lm_append_read_txlog_log(offset, txlog);
 }
 
 /**
@@ -101,7 +101,7 @@ void txlm_wirte_log(txlm_config_t *txlm_config, txlog_t *txlog)
     fclose(fp);
 
     /* ログ書き込み */
-    lm_append_write_txlog_log(txlog);
+    lm_append_write_txlog_log(offset, txlog);
 }
 
 static int get_log_offset(unsigned int lsn)
