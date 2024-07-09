@@ -8,17 +8,18 @@
 
 struct sender_socket_t
 {
-    int sd;
+    int sockfd;
+    int sigfd;
+    pthread_t bg_threadid;      // 制御メッセージ受信処理スレッド
+    int seq;                    // 生成済みSEQ
 };
 typedef struct sender_socket_t sender_socket_t;
 
 struct receiver_socket_t
 {
-    pthread_t bg_thread;
-
-    int sd;
-
-    char recvbuf[RECV_BUFF_SIZE];
+    int sockfd;
+    pthread_t bg_threadid;       // 制御メッセージ受信処理スレッド
+    char *recvbuf;
 };
 typedef struct receiver_socket_t receiver_socket_t;
 
@@ -29,25 +30,16 @@ struct endpoint_t
 };
 typedef struct endpoint_t endpoint_t;
 
-struct dest_info_t
-{
-    ssize_t list_size;
-    endpoint_t endpoint_list[MAX_MULTICAST_SIZE];
-};
-typedef struct dest_info_t dest_info_t;
-
 sender_socket_t *
 sender_socket();
 extern void
 sender_close(sender_socket_t *sock);
 extern ssize_t
-sendto_unicast(sender_socket_t *sock, char *buff, ssize_t len, endpoint_t *dest);
-extern ssize_t
-sendto_multicast(sender_socket_t *sock, char *buff, ssize_t len, dest_info_t *dest_info);
+send_multicast(sender_socket_t *sock, const char *buff, ssize_t len);
 
-extern receiver_socket_t *
-recveiver_socket(int port);
-extern void
-receiver_close(receiver_socket_t *sock);
-extern ssize_t
-recvfrom(receiver_socket_t *sock, char *buff, ssize_t len, endpoint_t *src);
+// extern receiver_socket_t *
+// recveiver_socket(int port);
+// extern void
+// receiver_close(receiver_socket_t *sock);
+// extern ssize_t
+// receive(receiver_socket_t *sock, const void *buff, ssize_t len, endpoint_t *src);
