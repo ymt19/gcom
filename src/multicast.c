@@ -96,7 +96,7 @@ signalfd_create()
 /**
  * sender_socketのバックグラウンドスレッドとして呼び出される
  */
-static void
+static void *
 bg_sender_socket(sender_socket_t *sock)
 {
 
@@ -166,12 +166,13 @@ bg_sender_socket(sender_socket_t *sock)
                 else if (fdsi.ssi_signo == SIGCLOSE)
                 {
                     DEBUG_PRINT("SIGCLOSE");
-                    exit(EXIT_SUCCESS);
+                    return NULL;
                 }
-                // else
-                // {
-                //     // Read unexpected signal
-                // }
+                else
+                {
+                    fprintf(stderr, "read unexpected signal.\n");
+                    exit(EXIT_FAILURE);
+                }
             }
         }
     }
@@ -183,7 +184,7 @@ bg_sender_socket(sender_socket_t *sock)
 sender_socket_t *
 sender_socket(int port, char *filename)
 {
-    int s;
+    int en;
     sender_socket_t *sock;
     
     sock = malloc(sizeof(sender_socket_t));
@@ -196,9 +197,9 @@ sender_socket(int port, char *filename)
     
     sock->sigfd = signalfd_create();
 
-    s = pthread_create(&sock->bg_threadid, NULL, (void *)bg_sender_socket, (void *)sock);
-    if (s != 0)
-        handle_error_en(s, "pthread_create");
+    en = pthread_create(&sock->bg_threadid, NULL, (void *)bg_sender_socket, (void *)sock);
+    if (en != 0)
+        handle_error_en(en, "pthread_create");
 
     return sock;
 }
@@ -209,17 +210,20 @@ sender_socket(int port, char *filename)
 void
 sender_close(sender_socket_t *sock)
 {
-    int s;
+    int en;
 
     // バックグラウンドスレッドにシグナル送信
     if (kill(getpid(), SIGCLOSE) != 0)
         handle_error("kill");
 
-    s = pthread_join(sock->bg_threadid, NULL);
-    if (s != 0)
-        handle_error_en(s, "pthread_join");
+    en = pthread_join(sock->bg_threadid, NULL);
+    if (en != 0)
+        handle_error_en(en, "pthread_join");
 
     if (close(sock->sockfd) != 0)
+        handle_error("close");
+
+    if (close(sock->sigfd) != 0)
         handle_error("close");
 
     free(sock);
@@ -242,66 +246,153 @@ send_multicast(sender_socket_t *sock, const char *buff, ssize_t len)
     return sent;
 }
 
-// /**
-//  * 
-//  */
-// static void
-// bg_receiver_socket(receiver_socket_t *sock)
-// {
-//     for (;;)
-//     {
-//         // input_segment();
+/**
+ * 
+ */
+static void *
+bg_receiver_socket(receiver_socket_t *sock)
+{
+    // epoll
+    struct epoll_event ev, events[EPOLL_MAX_EVENTS];
+    int epollfd, nfds;
+    // signalfd
+    struct signalfd_siginfo fdsi;
+    ssize_t size;
 
-//         // hdr == seq -> payloadをバッファに入れる
-//     }
-// }
+    // epollfdの生成
+    epollfd = epoll_create1(0);
+    if (epollfd == -1)
+    {
+        perror("epoll_create1");
+        exit(EXIT_FAILURE);
+    }
 
-// /**
-//  * 
-//  */
-// receiver_socket_t *
-// recveiver_socket(int port)
-// {
-//     struct sockaddr_in addr;
+    // sockfdをepollに登録
+    ev.events = EPOLLIN;
+    ev.data.fd = sock->sockfd;
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sock->sockfd, &ev) == -1)
+    {
+        perror("epoll_ctl: sock->udpsock");
+        exit(EXIT_FAILURE);
+    }
 
-//     receiver_socket_t *sock = malloc(sizeof(receiver_socket_t));
+    // signalfdをepollに登録
+    ev.events = EPOLLIN;
+    ev.data.fd = sock->sigfd;
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sock->sigfd, &ev) == -1)
+    {
+        perror("epoll_ctl: sfd");
+        exit(EXIT_FAILURE);
+    }
 
-//     // alm.confの読み込み
+    for (;;)
+    {
+        nfds = epoll_wait(epollfd, events, EPOLL_MAX_EVENTS, -1);
+        if (nfds == -1)
+            handle_error("epoll_wait");
 
-//     sock->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-//     addr.sin_family = AF_INET;
-//     addr.sin_port = htons(port);
-//     addr.sin_addr.s_addr = INADDR_ANY;
-//     bind(sock->sockfd, (struct sockaddr *)&addr, sizeof(addr));
+        for (int i = 0; i < nfds; ++i)
+        {
+            // データを受信した場合
+            if (events[i].data.fd == sock->sockfd)
+            {
+                // input_segment();
+            }
+            // シグナルを受信した場合
+            else if (events[i].data.fd == sock->sigfd)
+            {
+                size = read(sock->sigfd, &fdsi, sizeof(struct signalfd_siginfo));
+                if (size != sizeof(struct signalfd_siginfo))
+                    handle_error("read");
 
-//     pthread_create(&sock->bg_threadid, NULL, (void *)bg_receiver_socket, (void*)sock);
+                if (fdsi.ssi_signo == SIGCLOSE)
+                {
+                    DEBUG_PRINT("SIGCLOSE");
+                    return NULL;
+                }
+                else
+                {
+                    fprintf(stderr, "read unexpected signal.\n");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+    }
+}
 
-//     return sock;
-// }
+/**
+ * 
+ */
+receiver_socket_t *
+receiver_socket(int port)
+{
+    int en;
+    struct sockaddr_in addr;
+    receiver_socket_t *sock;
+    
+    sock = malloc(sizeof(receiver_socket_t));
+    if (sock == NULL)
+        handle_error("malloc");
 
-// /**
-//  * 
-//  */
-// void
-// receiver_close(receiver_socket_t *sock)
-// {
-//     pthread_cancel(sock->bg_threadid);
-//     pthread_join(sock->bg_threadid, NULL);
-//     close(sock->sockfd);
-//     free(sock);
-// }
+    // alm.confの読み込み
 
-// /**
-//  * 
-//  */
-// ssize_t
-// receive(receiver_socket_t *sock, const void *buff, ssize_t len, endpoint_t *src_addr)
-// {
-//     while (1)
-//     {
-//         // if recvbuffにデータがある
-//             // buffに格納
-//             // break
-//     }
-//     // return ??
-// }
+    // sockfdの設定
+    sock->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock->sockfd == -1)
+        handle_error("socket");
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = INADDR_ANY;
+    if (bind(sock->sockfd, (struct sockaddr *)&addr, sizeof(addr)) != 0)
+        handle_error("bind");
+
+    // sigfdの設定
+    sock->sigfd = signalfd_create();
+
+    en = pthread_create(&sock->bg_threadid, NULL, (void *)bg_receiver_socket, (void*)sock);
+    if (en != 0)
+        handle_error_en(en, "pthread_create");
+
+    return sock;
+}
+
+/**
+ * 
+ */
+void
+receiver_close(receiver_socket_t *sock)
+{
+    int en;
+
+    // バックグラウンドスレッドにシグナル送信
+    if (kill(getpid(), SIGCLOSE) != 0)
+        handle_error("kill");
+
+    en = pthread_join(sock->bg_threadid, NULL);
+    if (en != 0)
+        handle_error_en(en, "pthread_join");
+
+    if (close(sock->sockfd) != 0)
+        handle_error("close");
+
+    if (close(sock->sigfd) != 0)
+        handle_error("close");
+
+    free(sock);
+}
+
+/**
+ * 
+ */
+ssize_t
+receive(receiver_socket_t *sock, const void *buff, ssize_t len, endpoint_t *src_addr)
+{
+    DEBUG_PRINT("receive");
+    // for (;;)
+    // {
+        
+    // }
+    
+    return 0;
+}

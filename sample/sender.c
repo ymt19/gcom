@@ -9,4 +9,6 @@ int main(void) {
     send_multicast(sock, "abc", 3);
 
     sender_close(sock);
+
+    fprintf(stderr, "EXIT_SUCCESS\n");
 }
