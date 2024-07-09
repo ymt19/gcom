@@ -43,6 +43,7 @@ static void sender_worker(sender_worker_thread_info_t *worker_info)
         if (txlm_get_current_lsn(txlm_config) >= nextlsn) {
             /* TXLOGメッセージ生成 */
             txlm_read_log(txlm_config, &txlog, nextlsn);
+            // [todo] valid txlog
             fprintf(stdout, "[read] nextlsn:%d, lsn:%d, clientid:%d, appendtime:%lf, writetime:%lf, logsize:%d\n", nextlsn, txlog.lsn, txlog.client_id, txlog.append_time, txlog.write_time, txlog.log_size);
             msgsize = create_txlog_message(buff, srv_config->srv_id, target_id, &txlog);
             

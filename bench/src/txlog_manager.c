@@ -40,6 +40,9 @@ size_t txlm_get_current_lsn(txlm_config_t *txlm_config)
 {
     size_t current_lsn;
 
+    // todo
+    // atomic命令gcc built in
+    // 書き込みも atomic store
     current_lsn = txlm_config->latest_lsn;
 
     return current_lsn;
@@ -57,6 +60,7 @@ void txlm_append_log(txlm_config_t *txlm_config, txlog_t *txlog, unsigned short 
     txlog->log_size = txlm_config->log_size;
 
     txlm_write_log(txlm_config, txlog);
+    // [todo] atomic store
     txlm_config->latest_lsn++;
     pthread_mutex_unlock(&txlm_config->mutex_lsn);      // unlock
 }
@@ -94,11 +98,12 @@ void txlm_write_log(txlm_config_t *txlm_config, txlog_t *txlog)
     txlog->write_time = get_time();
 
     /* バイナリファイル書き込み */
+    // todo checksumを構造体に入れる
     if ((fp = fopen(txlm_config->filename, "wb")) == NULL) {
         fprintf(stderr, "fopen():%s\n", strerror(errno));
     }
     fseek(fp, offset, SEEK_SET);
-    if (fwrite(txlog, sizeof(txlog_t), 1, fp) != 1) {
+    if (fwrite(txlog, sizeof(txlog_t), 1, fp) != 1) {   // ちゃんとかけているのか？
         fprintf(stderr, "fwrite():%s\n", strerror(errno));
     }
     fflush(fp);
