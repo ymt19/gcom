@@ -12,6 +12,7 @@
 #include <pthread.h>
 
 #include "multicast.h"
+// #include "buffer.h"
 
 #define handle_error_en(en, msg) \
     do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
@@ -26,29 +27,16 @@
 #define DEBUG_PRINT(...)
 #endif
 
-#define UDP_PAYLOAD_SIZE_MAX 1472
-
-#define FLAG_NAK 0x01
-#define FLAG_ACK 0x02
-
 #define EPOLL_MAX_EVENTS 16
 
 #define SIGSEND     SIGRTMIN
 #define SIGCLOSE    SIGRTMIN+1
 
-struct header {
-    // rootipaddr
-    // rootport
-    uint32_t seq;
-    uint32_t ack;
-    uint8_t flag;
-};
-
 // /**
-//  * セグメントを出力
+//  * データグラムを出力
 //  */
 // static void
-// output_segment(int fd, uint32_t seq, uint32_t ack, uint8_t flag, uint8_t *payload, ssize_t payload_size, struct sockaddr_in *destaddr)
+// output_datagram(int fd, uint32_t seq, uint32_t ack, uint8_t flag, uint8_t *payload, ssize_t payload_size, struct sockaddr_in *destaddr)
 // {
 //     uint8_t seg[UDP_PAYLOAD_SIZE_MAX] = {};
 //     uint16_t seg_size;
@@ -65,10 +53,10 @@ struct header {
 // }
 
 // /**
-//  * セグメントを入力
+//  * データグラムを入力
 //  */
 // static void
-// input_segment(int fd, struct header *hdr, uint8_t *payload, struct sockaddr_in *srcaddr)
+// input_datagram(int fd, struct header *hdr, uint8_t *payload, struct sockaddr_in *srcaddr)
 // {
 //     // uint8_t seg[UDP_PAYLOAD_SIZE_MAX] = {};
 //     // ssize_t len;
@@ -94,16 +82,16 @@ signalfd_create()
 }
 
 /**
- * sender_socketのバックグラウンドスレッドとして呼び出される
+ * @brief sender_socketのバックグラウンドスレッドとして呼び出される
  */
 static void *
 bg_sender_socket(sender_socket_t *sock)
 {
 
-    // 変数：パケット送受信
+    // 変数：データグラム
+    // int nextseq;
     // struct header hdr;
-    // uint8_t payload[UDP_PAYLOAD_SIZE_MAX] = {};
-    // uint16_t pl_size;
+    // uint8_t data[DATA_SIZE_MAX];
     // epoll
     struct epoll_event ev, events[EPOLL_MAX_EVENTS];
     int epollfd, nfds;
@@ -162,6 +150,8 @@ bg_sender_socket(sender_socket_t *sock)
                 if (fdsi.ssi_signo == SIGSEND)
                 {
                     DEBUG_PRINT("SIGSEND");
+                    // buffer_get(&sock->buff, nextseq, &hdr, &data);
+                    // fprintf(stderr, "seq:%d, ")
                 }
                 else if (fdsi.ssi_signo == SIGCLOSE)
                 {
@@ -182,7 +172,7 @@ bg_sender_socket(sender_socket_t *sock)
  * 
  */
 sender_socket_t *
-sender_socket(int port, char *filename)
+sender_socket()
 {
     int en;
     sender_socket_t *sock;
@@ -196,6 +186,13 @@ sender_socket(int port, char *filename)
         handle_error("socket");
     
     sock->sigfd = signalfd_create();
+
+    sock->genseq = 0;
+    en = pthread_mutex_init(&sock->mutex_genseq, NULL);
+    if (en != 0)
+        handle_error_en(en, "pthread_mutex_destroy");
+
+    // buffer_create(&sock->buff);
 
     en = pthread_create(&sock->bg_threadid, NULL, (void *)bg_sender_socket, (void *)sock);
     if (en != 0)
@@ -226,19 +223,46 @@ sender_close(sender_socket_t *sock)
     if (close(sock->sigfd) != 0)
         handle_error("close");
 
+    // buffer_free(&sock->buff);
+
     free(sock);
 }
 
 /**
- * 
+ * @brief マルチキャストによる送信
  */
 ssize_t
 send_multicast(sender_socket_t *sock, const char *buff, ssize_t len)
 {
+    int en;
     ssize_t sent = 0;
-    // int recvack = 0;
+    int first, last;
+    struct header hdr;
+
+    // seqの割り当て
+    en = pthread_mutex_lock(&sock->mutex_genseq);
+    if (en != 0)
+        handle_error_en(en, "pthread_mutex_lock");
+    first = sock->genseq + 1;
+    last = first;
+    sock->genseq = last;
+    en = pthread_mutex_unlock(&sock->mutex_genseq);
+    if (en != 0)
+        handle_error_en(en, "pthread_mutex_unlock");
 
     // バッファに追加
+    for (int seq = first; seq <= last; seq++)
+    {
+        hdr.seq = seq;
+        hdr.first = first;
+        hdr.last = last;
+        // hdr.flag
+        hdr.size = len;
+        // buffer_push(&sock->buff, &hdr, buff);
+        #ifdef DEBUG
+            fprintf(stderr, "buffer add seq:%d, first:%d, last:%d, size:%d\n", hdr.seq, hdr.first, hdr.last, hdr.size);
+        #endif
+    }
 
     if (kill(getpid(), SIGSEND) != 0)
         handle_error("kill");

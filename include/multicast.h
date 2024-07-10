@@ -2,22 +2,45 @@
 
 #include <netinet/in.h>
 #include <pthread.h>
+// #include "buffer.h"
+
+/*************** header format ****************/
+struct header {
+    // rootipaddr
+    // previpaddr
+    uint32_t seq;
+    uint32_t first;
+    uint32_t last;
+    uint8_t flag;
+    uint16_t size;
+};
+
+#define DATAGRAM_SIZE_MAX   1472
+#define DATA_SIZE_MAX       DATAGRAM_SIZE_MAX - sizeof(struct header)
+
+#define FLAG_NAK            0x01
+#define FLAG_ACK            0x02
+#define FLAG_MTC    // multicastデータグラム
+#define FLAG_RLY    // 転送するデータグラム
+/*********************************************/
 
 struct sender_socket_t
 {
-    int sockfd;                 // ソケット参照ファイルディスクリプタ
-    int sigfd;                  // シグナル受信用ファイルディスクリプタ
-    pthread_t bg_threadid;      // 制御メッセージ受信処理スレッド
-    int seq;                    // 生成済みSEQ
+    int sockfd;                         // ソケット参照ファイルディスクリプタ
+    int sigfd;                          // シグナル受信用ファイルディスクリプタ
+    pthread_t bg_threadid;              // 制御メッセージ受信処理スレッド
+    int genseq;                         // 生成済みSEQ
+    pthread_mutex_t mutex_genseq;       // seqに対するmutex
+    // buffer_t buff;                      // 送信バッファ
 };
 typedef struct sender_socket_t sender_socket_t;
 
 struct receiver_socket_t
 {
-    int sockfd;                 // ソケット参照ファイルディスクリプタ
-    int sigfd;                  // シグナル受信用ファイルディスクリプタ
-    pthread_t bg_threadid;      // 制御メッセージ受信処理スレッド
-    char *recvbuf;
+    int sockfd;                         // ソケット参照ファイルディスクリプタ
+    int sigfd;                          // シグナル受信用ファイルディスクリプタ
+    pthread_t bg_threadid;              // 制御メッセージ受信処理スレッド
+    // buffer_t buff;                      // 受信バッファ
 };
 typedef struct receiver_socket_t receiver_socket_t;
 
@@ -28,16 +51,10 @@ struct endpoint_t
 };
 typedef struct endpoint_t endpoint_t;
 
-sender_socket_t *
-sender_socket();
-extern void
-sender_close(sender_socket_t *sock);
-extern ssize_t
-send_multicast(sender_socket_t *sock, const char *buff, ssize_t len);
+sender_socket_t *sender_socket();
+void sender_close(sender_socket_t *sock);
+ssize_t send_multicast(sender_socket_t *sock, const char *buff, ssize_t len);
 
-extern receiver_socket_t *
-receiver_socket(int port);
-extern void
-receiver_close(receiver_socket_t *sock);
-extern ssize_t
-receive(receiver_socket_t *sock, const void *buff, ssize_t len, endpoint_t *src);
+receiver_socket_t *receiver_socket(int port);
+void receiver_close(receiver_socket_t *sock);
+ssize_t receive(receiver_socket_t *sock, const void *buff, ssize_t len, endpoint_t *src);

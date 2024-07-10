@@ -8,6 +8,8 @@ int main(void) {
 
     send_multicast(sock, "abc", 3);
 
+    send_multicast(sock, "abcd", 4);
+
     sender_close(sock);
 
     fprintf(stderr, "EXIT_SUCCESS\n");
