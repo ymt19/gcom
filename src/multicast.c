@@ -12,7 +12,8 @@
 #include <pthread.h>
 
 #include "multicast.h"
-// #include "buffer.h"
+#include "header.h"
+#include "buffer.h"
 
 #define handle_error_en(en, msg) \
     do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
@@ -88,10 +89,10 @@ static void *
 bg_sender_socket(sender_socket_t *sock)
 {
 
-    // 変数：データグラム
-    // int nextseq;
-    // struct header hdr;
-    // uint8_t data[DATA_SIZE_MAX];
+    // datagram
+    int nextseq;
+    struct header hdr;
+    char data[DATA_SIZE_MAX];
     // epoll
     struct epoll_event ev, events[EPOLL_MAX_EVENTS];
     int epollfd, nfds;
@@ -127,6 +128,7 @@ bg_sender_socket(sender_socket_t *sock)
     }
 
     // 各イベントの処理
+    nextseq = 0;
     for (;;)
     {
         nfds = epoll_wait(epollfd, events, EPOLL_MAX_EVENTS, -1);
@@ -150,8 +152,8 @@ bg_sender_socket(sender_socket_t *sock)
                 if (fdsi.ssi_signo == SIGSEND)
                 {
                     DEBUG_PRINT("SIGSEND");
-                    // buffer_get(&sock->buff, nextseq, &hdr, &data);
-                    // fprintf(stderr, "seq:%d, ")
+                    buffer_get(&sock->sendbuf, nextseq, &hdr, data);
+                    nextseq++;
                 }
                 else if (fdsi.ssi_signo == SIGCLOSE)
                 {
@@ -192,7 +194,7 @@ sender_socket()
     if (en != 0)
         handle_error_en(en, "pthread_mutex_destroy");
 
-    // buffer_create(&sock->buff);
+    buffer_init(&sock->sendbuf);
 
     en = pthread_create(&sock->bg_threadid, NULL, (void *)bg_sender_socket, (void *)sock);
     if (en != 0)
@@ -223,7 +225,7 @@ sender_close(sender_socket_t *sock)
     if (close(sock->sigfd) != 0)
         handle_error("close");
 
-    // buffer_free(&sock->buff);
+    buffer_free(&sock->sendbuf);
 
     free(sock);
 }
@@ -232,7 +234,7 @@ sender_close(sender_socket_t *sock)
  * @brief マルチキャストによる送信
  */
 ssize_t
-send_multicast(sender_socket_t *sock, const char *buff, ssize_t len)
+send_multicast(sender_socket_t *sock, const char *buf, ssize_t len)
 {
     int en;
     ssize_t sent = 0;
@@ -258,10 +260,11 @@ send_multicast(sender_socket_t *sock, const char *buff, ssize_t len)
         hdr.last = last;
         // hdr.flag
         hdr.size = len;
-        // buffer_push(&sock->buff, &hdr, buff);
         #ifdef DEBUG
             fprintf(stderr, "buffer add seq:%d, first:%d, last:%d, size:%d\n", hdr.seq, hdr.first, hdr.last, hdr.size);
         #endif
+
+        buffer_push(&sock->sendbuf, &hdr, (char *)buf);
     }
 
     if (kill(getpid(), SIGSEND) != 0)

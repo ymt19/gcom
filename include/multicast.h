@@ -2,27 +2,7 @@
 
 #include <netinet/in.h>
 #include <pthread.h>
-// #include "buffer.h"
-
-/*************** header format ****************/
-struct header {
-    // rootipaddr
-    // previpaddr
-    uint32_t seq;
-    uint32_t first;
-    uint32_t last;
-    uint8_t flag;
-    uint16_t size;
-};
-
-#define DATAGRAM_SIZE_MAX   1472
-#define DATA_SIZE_MAX       DATAGRAM_SIZE_MAX - sizeof(struct header)
-
-#define FLAG_NAK            0x01
-#define FLAG_ACK            0x02
-#define FLAG_MTC    // multicastデータグラム
-#define FLAG_RLY    // 転送するデータグラム
-/*********************************************/
+#include "buffer.h"
 
 struct sender_socket_t
 {
@@ -31,7 +11,7 @@ struct sender_socket_t
     pthread_t bg_threadid;              // 制御メッセージ受信処理スレッド
     int genseq;                         // 生成済みSEQ
     pthread_mutex_t mutex_genseq;       // seqに対するmutex
-    // buffer_t buff;                      // 送信バッファ
+    buffer_t sendbuf;                   // 送信バッファ
 };
 typedef struct sender_socket_t sender_socket_t;
 
