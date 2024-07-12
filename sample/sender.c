@@ -2,15 +2,17 @@
 #include <stdio.h>
 
 int main(void) {
-    sender_socket_t *sock;
+    sender_socket();
+    fprintf(stdout, "LINE:%d\n", __LINE__);
 
-    sock = sender_socket();
+    send_multicast("abc", 3);
+    fprintf(stdout, "LINE:%d\n", __LINE__);
 
-    send_multicast(sock, "abc", 3);
+    send_multicast("abcd", 4);
+    fprintf(stdout, "LINE:%d\n", __LINE__);
 
-    send_multicast(sock, "abcd", 4);
-
-    sender_close(sock);
+    sender_close();
+    fprintf(stdout, "LINE:%d\n", __LINE__);
 
     fprintf(stderr, "EXIT_SUCCESS\n");
 }

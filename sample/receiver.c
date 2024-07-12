@@ -2,15 +2,14 @@
 #include <stdio.h>
 
 int main(void) {
-    receiver_socket_t *sock;
-    char buff[16];
+    char buff[BUFSIZ];
     endpoint_t endpoint;
 
-    sock = receiver_socket(10001);
+    receiver_socket(10001);
 
-    receive(sock, buff, 16, &endpoint);
+    receive(buff, BUFSIZ, &endpoint);
 
-    receiver_close(sock);
+    receiver_close();
 
     fprintf(stderr, "EXIT_SUCCESS\n");
 }
