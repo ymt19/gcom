@@ -3,42 +3,33 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "buffer.h"
+#include "queue.h"
+#include "utils.h"
 
-#define handle_error_en(en, msg) \
-    do { errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
-#define handle_error(msg) \
-    do { perror(msg); exit(EXIT_FAILURE); } while (0)
-
-#ifdef DEBUG
-#define DEBUG_PRINT(...) \
-    fprintf(stderr, "%s(%d) %s:", __FILE__, __LINE__, __func__), \
-    fprintf(stderr, "Debug: %s\n", __VA_ARGS__)
-#else
-#define DEBUG_PRINT(...)
-#endif
+struct queue_entry
+{
+    void *data;
+    struct node *prev;
+    struct node *next;
+};
 
 /**
  * @brief bufferの初期化
  */
-extern void
-buffer_init(buffer_t *buf)
+void
+queue_init(struct queue *buf)
 {
     int en;
 
     buf->head = NULL;
     buf->tail = NULL;
-
-    en = pthread_mutex_init(&buf->mutex, NULL);
-    if (en != 0)
-        handle_error_en(en, "pthread_mutex_init");
 }
 
 /**
  * @brief bufferの解放
  */
-extern void
-buffer_free(buffer_t *buf)
+void
+queue_free(struct queue *buf)
 {
     int en;
 
@@ -46,20 +37,16 @@ buffer_free(buffer_t *buf)
     {
         buffer_pop(buf);
     }
-
-    en = pthread_mutex_destroy(&buf->mutex);
-    if (en != 0)
-        handle_error_en(en, "pthread_mutex_destroy");
 }
 
 /**
  * @brief bufferに要素を追加
  */
-extern void
-buffer_push(buffer_t *buf, struct header *hdr, char *data)
+void
+queue_push(struct queue *buf, struct header *hdr, char *data)
 {
     int en;
-    node_t *new_node;
+    struct node *new_node;
     
     new_node = malloc(sizeof(node_t));
     if (new_node == NULL)
@@ -67,11 +54,6 @@ buffer_push(buffer_t *buf, struct header *hdr, char *data)
 
     memcpy(&new_node->hdr, hdr, sizeof(struct header));
     memcpy(&new_node->data, data, hdr->size);
-
-    // バッファを加工
-    en = pthread_mutex_lock(&buf->mutex);
-    if (en != 0)
-        handle_error_en(en, "pthread_mutex_lock");
 
     // buffが空の場合
     if (buf->head == NULL)
@@ -88,25 +70,16 @@ buffer_push(buffer_t *buf, struct header *hdr, char *data)
         buf->tail->next = new_node;
         buf->tail = new_node;
     }
-
-    en = pthread_mutex_unlock(&buf->mutex);
-    if (en != 0)
-        handle_error_en(en, "pthread_mutex_unlock");
 }
 
 /**
  * @brief bufferの先頭要素を削除
  */
 extern void
-buffer_pop(buffer_t *buf)
+queue_pop(struct queue *buf)
 {
     int en;
-    node_t *pop_node;
-
-    // バッファを加工
-    en = pthread_mutex_lock(&buf->mutex);
-    if (en != 0)
-        handle_error_en(en, "pthread_mutex_lock");
+    struct node *pop_node;
 
     // bufが空ではない場合
     if (buf->head != NULL)
@@ -126,25 +99,17 @@ buffer_pop(buffer_t *buf)
         }
         free(pop_node);
     }
-    
-    en = pthread_mutex_unlock(&buf->mutex);
-    if (en != 0)
-        handle_error_en(en, "pthread_mutex_unlock");
 }
 
 /**
  * @brief bufferからseqのデータを取得
  */
 extern int
-buffer_get(buffer_t *buf, int seq, struct header *hdr, char *data)
+queue_get(struct queue *buf, int seq, struct header *hdr, char *data)
 {
     int en;
     int ret = -1;
     node_t *now;
-
-    en = pthread_mutex_lock(&buf->mutex);
-    if (en != 0)
-        handle_error_en(en, "pthread_mutex_lock");
 
     now = buf->head;
     while (now != NULL)
@@ -158,10 +123,6 @@ buffer_get(buffer_t *buf, int seq, struct header *hdr, char *data)
         }
         now = now->next;
     }
-
-    en = pthread_mutex_unlock(&buf->mutex);
-    if (en != 0)
-        handle_error_en(en, "pthread_mutex_unlock");
 
     return ret;
 }

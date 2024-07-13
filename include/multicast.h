@@ -3,9 +3,6 @@
 #include <netinet/in.h>
 #include <pthread.h>
 
-#define SEND_BUFFER_SIZE    65535
-#define RECV_BUFFER_SIZE    65535
-
 struct endpoint_t
 {
     uint16_t port;
@@ -17,12 +14,12 @@ extern int
 sender_socket();
 extern int
 sender_close();
-extern ssize_t
-send_multicast(const char *buf, ssize_t len);
+extern int
+send_multicast(void *buf, size_t len);
 
 extern int
 receiver_socket(int port);
 extern int
 receiver_close();
-extern ssize_t
-receive(const void *buf, ssize_t len, endpoint_t *src);
+extern int
+receive(void *buf, size_t len, endpoint_t *src);

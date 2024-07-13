@@ -2,30 +2,24 @@
 
 #include <pthread.h>
 
-#include "header.h"
-
-struct node_t
-{
-    struct header hdr;
-    char data[DATA_SIZE_MAX];
-    struct node_t *prev;
-    struct node_t *next;
-};
-typedef struct node_t node_t;
+struct queue_entry;
 
 /**
- * @brief 優先度付きキュー <= ただの双方向リスト
+ * @brief queue
  */
-struct buffer_t
+struct queue
 {
-    node_t *head;
-    node_t *tail;
-    pthread_mutex_t mutex;
+    struct queue_entry *head;
+    struct queue_entry *tail;
 };
-typedef struct buffer_t buffer_t;
 
-void buffer_init(buffer_t *buf);
-void buffer_free(buffer_t *buf);
-void buffer_push(buffer_t *buf, struct header *hdr, char *data);
-void buffer_pop(buffer_t *buf);
-int buffer_get(buffer_t *buf, int seq, struct header *hdr, char *data);
+extern void
+queue_init(struct queue *buf);
+extern void
+queue_free(struct queue *buf);
+extern void
+queue_push(struct queue *buf, char *data);
+extern void
+queue_pop(struct queue *buf);
+extern int
+queue_get(struct queue *buf, int seq, char *data);

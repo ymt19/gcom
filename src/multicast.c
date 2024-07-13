@@ -13,9 +13,13 @@
 
 #include "multicast.h"
 #include "utils.h"
+#include "buffer.h"
 
-#define DATAGRAM_SIZE_MAX   1472
-#define DATA_SIZE_MAX       DATAGRAM_SIZE_MAX - sizeof(struct header)
+#define SEND_BUFFER_SIZE    65535
+#define RECV_BUFFER_SIZE    65535
+
+#define SEGMENT_SIZE_MAX            1472
+#define SEGMENT_DATA_SIZE_MAX       SEGMENT_SIZE_MAX - sizeof(struct header)
 
 #define FLAG_NAK            0x01
 #define FLAG_ACK            0x02
@@ -42,9 +46,7 @@ struct sender_socket
     int sigfd;
     pthread_t bg_threadid;
     int genseq; /* generated seqence number */
-    pthread_mutex_t mutex_genseq;
-    uint8_t sendbuf[SEND_BUFFER_SIZE];
-    pthread_mutex_t mutex_sendbuf;
+    struct buffer sendbuf;
 };
 
 struct receiver_socket
@@ -52,8 +54,12 @@ struct receiver_socket
     int sockfd;
     int sigfd;
     pthread_t bg_threadid;
-    uint8_t recvbuf[RECV_BUFFER_SIZE];
-    pthread_mutex_t mutex_recvbuf;
+    struct buffer recvbuf;
+};
+
+struct queue_entry
+{
+    uint64_t buf_idx;
 };
 
 static struct sender_socket *ss = NULL;
@@ -162,22 +168,27 @@ bg_sender_socket()
 
         for (int i = 0; i < nfds; ++i)
         {
-            /* データを受信した場合 */
+            // データを受信した場合
             if (events[i].data.fd == ss->sockfd)
             {
                 // input_segment();
+
+                // segment typeごとの処理
             }
-            /* シグナルを受信した場合 */
+            // シグナルを受信した場合
             else if (events[i].data.fd == ss->sigfd)
             {
                 size = read(ss->sigfd, &fdsi, sizeof(struct signalfd_siginfo));
                 if (size != sizeof(struct signalfd_siginfo))
                     handle_error("read");
 
+                // 送信
                 if (fdsi.ssi_signo == SIGSEND)
                 {
                     DEBUG_PRINT("SIGSEND");
+
                 }
+                // 終了
                 else if (fdsi.ssi_signo == SIGCLOSE)
                 {
                     DEBUG_PRINT("SIGCLOSE");
@@ -212,9 +223,8 @@ sender_socket()
     ss->sigfd = signalfd_create();
 
     ss->genseq = 0;
-    en = pthread_mutex_init(&ss->mutex_genseq, NULL);
-    if (en != 0)
-        handle_error_en(en, "pthread_mutex_destroy");
+
+    buffer_init(&ss->sendbuf, SEND_BUFFER_SIZE);
 
     en = pthread_create(&ss->bg_threadid, NULL, (void *)bg_sender_socket, NULL);
     if (en != 0)
@@ -248,6 +258,8 @@ sender_close()
     if (close(ss->sigfd) != 0)
         handle_error("close");
 
+    buffer_free(&ss->sendbuf);
+
     free(ss);
     ss = NULL;
     return 0;
@@ -256,28 +268,30 @@ sender_close()
 /**
  * @brief マルチキャストによる送信
  */
-ssize_t
-send_multicast(const char *buf, ssize_t len)
+int
+send_multicast(void *buf, size_t len)
 {
     int en;
-    ssize_t sent = 0;
+    int sent = 0;
     int first, last;
 
     if (ss == NULL)
         return -1;
 
+    if (len == 0)
+        return -1;
+
     /* asign sequence number */
-    en = pthread_mutex_lock(&ss->mutex_genseq);
-    if (en != 0)
-        handle_error_en(en, "pthread_mutex_lock");
     first = ss->genseq + 1;
-    last = first;
+    last = first + (len - 1) / SEGMENT_DATA_SIZE_MAX;
     ss->genseq = last;
-    en = pthread_mutex_unlock(&ss->mutex_genseq);
-    if (en != 0)
-        handle_error_en(en, "pthread_mutex_unlock");
 
     /* write buffer */
+    for (int seq = first; seq <= last; seq++)
+    {
+        buffer_push(&ss->sendbuf, buf, len);
+        // queueにぶっこみ
+    }
 
     if (kill(getpid(), SIGSEND) != 0)
         handle_error("kill");
@@ -432,8 +446,8 @@ receiver_close()
 /**
  * 
  */
-ssize_t
-receive(const void *buf, ssize_t len, endpoint_t *src_addr)
+int
+receive(void *buf, size_t len, endpoint_t *src_addr)
 {
     if (rs == NULL)
         return -1;
