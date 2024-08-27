@@ -11,7 +11,7 @@ buffer_init(struct buffer *buf, size_t size)
 {
     buf->data = malloc(sizeof(uint8_t) * size);
     if (buf->data == NULL)
-        handle_error(malloc);
+        handle_error("malloc");
 
     buf->size = size;
     buf->write_idx = 0;
@@ -38,6 +38,9 @@ buffer_push(struct buffer *buf, uint8_t *push, size_t len)
     uint64_t remain;
     uint64_t start, end;
 
+    if (buf->data == NULL)
+        return -1;
+
     remain = buf->size - (buf->write_idx - buf->read_idx);
     if (len > remain)
         return -1;
@@ -56,7 +59,7 @@ buffer_push(struct buffer *buf, uint8_t *push, size_t len)
         memcpy(buf->data + start % buf->size, push, len);
     }
 
-    buf->write_idx = end;
+    buf->write_idx += len;
 
     return 0;
 }
@@ -69,6 +72,9 @@ int
 buffer_push_empty(struct buffer *buf, size_t len)
 {
     uint64_t remain;
+
+    if (buf->data == NULL)
+        return -1;
 
     remain = buf->size - (buf->write_idx - buf->read_idx);
     if (len > remain)
@@ -87,6 +93,9 @@ buffer_push_empty(struct buffer *buf, size_t len)
 int
 buffer_pop(struct buffer *buf, size_t len)
 {
+    if (buf->data == NULL)
+        return -1;
+
     if (buf->write_idx > buf->read_idx + len)
         return -1;
     
@@ -105,6 +114,9 @@ buffer_set(struct buffer *buf, uint64_t idx, uint8_t *set, size_t len)
 {
     uint64_t min, max;
     uint64_t start, end;
+
+    if (buf->data == NULL)
+        return -1;
 
     min = buf->read_idx;
     max = buf->write_idx - len;
@@ -128,6 +140,32 @@ buffer_set(struct buffer *buf, uint64_t idx, uint8_t *set, size_t len)
     return 0;
 }
 
+static uint64_t
+calc_min_valid_idx(struct buffer *buf)
+{
+    uint64_t min;
+
+    if (buf->read_idx / buf->size == buf->write_idx / buf->size)
+    {
+        if (buf->read_idx / buf->size == 0)
+            min = 0;
+        else
+            min = ((buf->read_idx / buf->size) * buf->read_idx) 
+                    - (buf->size - buf->write_idx % buf->size);
+    }
+    else
+    {
+        min = ((buf->read_idx / buf->size) * buf->read_idx) 
+                + (buf->size - buf->write_idx % buf->size);
+    }
+}
+
+static uint64_t
+calc_max_valid_idx(struct buffer *buf)
+{
+    return buf->write_idx;
+}
+
 /**
  * @brief 指定したインデックスのデータを取得
  * @details
@@ -139,9 +177,11 @@ buffer_get(struct buffer *buf, uint64_t idx, uint8_t *get, size_t len)
     uint64_t min, max;
     uint64_t start, end;
 
-    min = buf->read_idx / buf->size * buf->size;
-    min += buf->write_idx % buf->size;
-    max = buf->write_idx  + len;
+    if (buf->data == NULL)
+        return -1;
+
+    min = calc_min_valid_idx(buf);
+    max = calc_max_valid_idx(buf) - len;
     if (idx < min || idx > max)
         return -1;
 

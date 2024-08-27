@@ -1,38 +1,52 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "buffer.h"
+#include "../buffer.h"
+
+#define BUF_SIZE    16
 
 int main()
 {
-    buffer_t buf;
-    struct header hdr1, hdr2;
-    char data1[DATA_SIZE_MAX], data2[DATA_SIZE_MAX];
+    struct buffer buf;
+    uint64_t idx;
+    char str0[32];
+    char str1[32] = "aaaaaa";       // len: 6
+    char str2[32] = "bbbbbb";       // len: 6
+    char str3[32] = "cccccc";       // len:6
+    // char str4[32] = "ddddddddd";    // len:9
+    // uint64_t idx = 0;
 
-    buffer_init(&buf);
+    buffer_init(&buf, BUF_SIZE);
 
-    strcpy(data1, "abcdefg\0");
-    hdr1.seq = 1;
-    hdr1.first = 1;
-    hdr1.last = 1;
-    hdr1.size = strlen(data1);
-    buffer_push(&buf, &hdr1, data1);
-    buffer_get(&buf, 1, &hdr2, data2);
-    fprintf(stdout, "push...seq:%d,first:%d,last:%d,size:%d,data:%s\n", hdr1.seq, hdr1.first, hdr1.last, hdr1.size, data1);
-    fprintf(stdout, "get....seq:%d,first:%d,last:%d,size:%d,data:%s\n", hdr2.seq, hdr2.first, hdr2.last, hdr2.size, data2);
+    fprintf(stdout, "   write_idx:%ld, read_idx:%ld\n", buf.write_idx, buf.read_idx);
 
-    strcpy(data2, "ijkl\0");
-    hdr1.seq = 2;
-    hdr1.first = 2;
-    hdr1.last = 2;
-    hdr1.size = strlen(data1);
-    buffer_push(&buf, &hdr1, data1);
-    fprintf(stdout, "%d\n", __LINE__);
-    buffer_get(&buf, 2, &hdr2, data2);
-    fprintf(stdout, "push...seq:%d,first:%d,last:%d,size:%d,data:%s\n", hdr1.seq, hdr1.first, hdr1.last, hdr1.size, data1);
-    fprintf(stdout, "get....seq:%d,first:%d,last:%d,size:%d,data:%s\n", hdr2.seq, hdr2.first, hdr2.last, hdr2.size, data2);
+    fprintf(stdout, "\n");
 
-    buffer_pop(&buf);
+    idx = buf.write_idx;
+    buffer_push(&buf, (uint8_t *)str1, strlen(str1));
+    fprintf(stdout, "   write_idx:%ld, read_idx:%ld\n", buf.write_idx, buf.read_idx);
+    buffer_get(&buf, idx, (uint8_t *)str0, strlen(str1));
+    str0[strlen(str1)] = '\0';
+    fprintf(stdout, "%s:%s\n", str1, str0);
+    buffer_pop(&buf, strlen(str1));
+
+    fprintf(stdout, "\n");
+
+    idx = buf.write_idx;
+    buffer_push(&buf, (uint8_t *)str2, strlen(str2));
+    fprintf(stdout, "   write_idx:%ld, read_idx:%ld\n", buf.write_idx, buf.read_idx);
+    buffer_get(&buf, idx, (uint8_t *)str0, strlen(str2));
+    str0[strlen(str2)] = '\0';
+    fprintf(stdout, "%s:%s\n", str2, str0);
+
+    fprintf(stdout, "\n");
+
+    idx = buf.write_idx;
+    buffer_push(&buf, (uint8_t *)str3, strlen(str3));
+    fprintf(stdout, "   write_idx:%ld, read_idx:%ld\n", buf.write_idx, buf.read_idx);
+    buffer_get(&buf, idx, (uint8_t *)str0, strlen(str3));
+    str0[strlen(str3)] = '\0';
+    fprintf(stdout, "%s:%s\n", str3, str0);
 
     buffer_free(&buf);
 }
