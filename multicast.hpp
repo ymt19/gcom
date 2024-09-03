@@ -31,20 +31,10 @@ private:
     int genseq_;
     RingBuffer buff_;
 public:
-    SenderSocket()
-    {
-        genseq_ = 0;
-    }
+    SenderSocket();
+    ~SenderSocket();
 
-    ~SenderSocket()
-    {
-
-    }
-
-    void send_to()
-    {
-
-    }
+    void send_to();
 };
 
 class ReceiverSocket
@@ -55,20 +45,10 @@ private:
     std::thread bg_;
     RingBuffer buff_;
 public:
-    ReceiverSocket()
-    {
+    ReceiverSocket();
+    ~ReceiverSocket();
 
-    }
-
-    ~ReceiverSocket()
-    {
-
-    }
-
-    void receive_from()
-    {
-
-    }
+    void receive_from();
 };
 
 }
