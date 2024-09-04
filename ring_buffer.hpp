@@ -14,7 +14,7 @@ namespace multicast
 class RingBuffer
 {
 private:
-    char body_[BUFFER_SIZE];
+    unsigned char body_[BUFFER_SIZE]; // unsigned or signed
     uint64_t write_idx_;
     uint64_t read_idx_;
 
