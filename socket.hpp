@@ -27,8 +27,8 @@ private:
         uint64_t len;
     };
 
-    boost::asio::io_service ios;
-    ip::udp::socket sock;
+    boost::asio::io_service ios_;
+    ip::udp::socket sock_;
     // set<endpoint, pair<buff, queue<QueueEntry>>>
     void output_packet();
     void input_packet();
