@@ -1,6 +1,8 @@
 #pragma once
 
 #include <boost/asio.hpp>
+#include <queue>
+#include "ring_buffer.hpp"
 
 namespace multicast
 {
@@ -9,6 +11,8 @@ namespace ip = boost::asio::ip;
 
 class Socket
 {
+public:
+    Socket(int port);
 private:
     struct header
     {
@@ -27,14 +31,14 @@ private:
         uint64_t len;
     };
 
-    boost::asio::io_service ios_;
-    ip::udp::socket sock_;
-    // set<endpoint, pair<buff, queue<QueueEntry>>>
     void output_packet();
     void input_packet();
     void background(); // 各処理を渡す引数
-public:
-    Socket();
+
+    boost::asio::io_service _io_service;
+    ip::udp::socket _udp_sock;
+    RingBuffer _buff;
+    std::priority_queue<QueueEntry> _queue;
 };
 
 }

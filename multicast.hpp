@@ -9,21 +9,30 @@ namespace multicast
 // For Sender.
 class SenderSocket : public Socket
 {
-private:
-    int genseq_;
-    void bg();
 public:
     SenderSocket();
     void send();
+private:
+    void background();
+
+    int _generated_seq;
 };
 
 // For Receiver.
 class ReceiverSocket : public Socket
 {
-private:
 public:
     ReceiverSocket();
     void recv();
+private:
+    void background();
 };
+
+class DistributionTree
+{
+public:
+private:
+    int _id;
+}
 
 }
