@@ -2,6 +2,7 @@
 
 #include <boost/asio.hpp>
 #include <queue>
+#include "tree.hpp"
 #include "ring_buffer.hpp"
 
 namespace multicast
@@ -37,6 +38,7 @@ private:
 
     boost::asio::io_service _io_service;
     ip::udp::socket _udp_sock;
+    Tree _tree;
     RingBuffer _buff;
     std::priority_queue<QueueEntry> _queue;
 };
