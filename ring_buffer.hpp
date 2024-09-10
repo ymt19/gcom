@@ -13,16 +13,6 @@ namespace multicast
 
 class RingBuffer
 {
-private:
-    unsigned char body_[BUFFER_SIZE]; // unsigned or signed
-    uint64_t write_idx_;
-    uint64_t read_idx_;
-
-    //
-    uint64_t get_min_valid_idx();
-
-    //
-    uint64_t get_max_valid_idx();
 public:
     RingBuffer();
 
@@ -41,6 +31,16 @@ public:
 
     //
     std::string get(uint64_t idx, uint64_t get_size);
+private:
+    unsigned char body_[BUFFER_SIZE]; // unsigned or signed
+    uint64_t write_idx_;
+    uint64_t read_idx_;
+
+    //
+    uint64_t get_min_valid_idx();
+
+    //
+    uint64_t get_max_valid_idx();
 };
 
 }

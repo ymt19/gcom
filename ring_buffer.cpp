@@ -1,22 +1,5 @@
 #include "ring_buffer.hpp"
 
-uint64_t multicast::RingBuffer::get_min_valid_idx()
-{
-    if (write_idx_ < BUFFER_SIZE)
-    {
-        return 0;
-    }
-    else
-    {
-        return write_idx_ - BUFFER_SIZE;
-    }
-}
-
-uint64_t multicast::RingBuffer::get_max_valid_idx()
-{
-    return write_idx_;
-}
-
 multicast::RingBuffer::RingBuffer()
 {
     write_idx_ = 0;
@@ -120,4 +103,21 @@ std::string multicast::RingBuffer::get(uint64_t idx, uint64_t get_size)
     }
 
     return get_str;
+}
+
+uint64_t multicast::RingBuffer::get_min_valid_idx()
+{
+    if (write_idx_ < BUFFER_SIZE)
+    {
+        return 0;
+    }
+    else
+    {
+        return write_idx_ - BUFFER_SIZE;
+    }
+}
+
+uint64_t multicast::RingBuffer::get_max_valid_idx()
+{
+    return write_idx_;
 }
