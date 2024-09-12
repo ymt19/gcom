@@ -1,38 +1,56 @@
 #pragma once
 
-#include "socket.hpp"
 #include "ring_buffer.hpp"
+#include "tree.hpp"
+#include <boost/asio.hpp>
+#include <thread>
+#include <queue>
 
 namespace multicast
 {
 
-// For Sender.
-class SenderSocket : public Socket
+class Socket
 {
 public:
-    SenderSocket();
-    void send();
-private:
-    void background();
+    Socket(uint16_t port);
+    ~Socket();
 
-    int _generated_seq;
-};
+    void send(std::string msg, boost::asio::ip::udp::endpoint dest);
 
-// For Receiver.
-class ReceiverSocket : public Socket
-{
-public:
-    ReceiverSocket();
     void recv();
 private:
-    void background();
-};
+    void output_packet();
 
-class DistributionTree
-{
-public:
-private:
-    int _id;
-}
+    void input_packet();
+
+    void background();
+
+    struct header
+    {
+        uint64_t seq;
+        uint64_t first;
+        uint64_t last;
+        uint64_t len;
+        uint8_t flg;
+    };
+
+    struct queue_entry
+    {
+    public:
+        uint64_t idx;
+        uint64_t seq;
+        uint64_t len;
+    };
+
+    // uint16_t port_;
+    // boost::asio::ip::udp::endpoint endpoint_;
+    boost::asio::io_context io_context_;
+    boost::asio::ip::udp::socket udp_sock_;
+    // Tree tree_;
+    RingBuffer recv_buff_;
+    // std::priority_queue<queue_entry> queue_;
+    uint64_t generated_seq_;
+    std::thread bgth_;
+};
 
 }
