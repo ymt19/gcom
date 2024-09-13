@@ -1,40 +1,172 @@
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/signalfd.h>
+#include <sys/epoll.h>
+#include <unistd.h>
+#include <signal.h>
+#include <netinet/in.h>
+#include <exception>
 #include "multicast.hpp"
 
 namespace multicast
 {
 
-Socket::Socket(uint16_t port)
-    : udp_sock_(io_context_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), port)),
+Socket::Socket() 
+    : sockfd_(-1),
+    signalfd_(-1),
     generated_seq_(0) {}
 
-Socket::~Socket()
-{
+Socket::~Socket() {}
 
+void Socket::open(uint16_t port)
+{
+    struct sockaddr_in addr;
+
+    sockfd_ = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd_ == -1)
+    {
+        throw std::exception();
+    }
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = INADDR_ANY;
+    if (bind(sockfd_, (struct sockaddr *)&addr, sizeof(addr)) != 0)
+    {
+        throw std::exception();
+    }
+
+    try
+    {
+        get_signalfd();
+    }
+    catch(const std::exception& e)
+    {
+        throw std::exception();
+    }
+
+    // thread
 }
 
-void Socket::send(std::string msg, boost::asio::ip::udp::endpoint dest)
+void Socket::close()
 {
-    // udp_sock_.send_to(asio::buffer(&msg, size, dest));
+    // join
+    ::close(sockfd_);
+}
+
+void Socket::send()
+{
+    // msgを分割して，send_buff_に登録
+    // seqをインクリメント
+    // backgroundに通知
 }
 
 void Socket::recv()
 {
-
+    // recv_buff_から取得
 }
 
 void Socket::output_packet()
 {
-
+    // udp_sock_.send_to(asio::buffer(&msg, size, dest));
 }
 
 void Socket::input_packet()
 {
-
+    // udp_sock_.recv()
 }
 
-void Socket::background()
+void *Socket::background()
 {
+    struct epoll_event events[max_epoll_events];
+    int epollfd, nfds;
+    struct signalfd_siginfo fdsi;
+    ssize_t size;
 
+    epollfd = register_epoll_events();
+
+    for (;;)
+    {
+        nfds = epoll_wait(epollfd, events, max_epoll_events, -1);
+        if (nfds == -1)
+        {
+            exit(EXIT_FAILURE);
+        }
+
+        for (int i = 0; i < nfds; ++i)
+        {
+            if (events[i].data.fd == sockfd_)
+            {
+                // input
+
+                // ACK
+                // NACK
+                // DATA
+            }
+            else if (events[i].data.fd == signalfd_)
+            {
+                size = read(ss->sigfd, &fdsi, sizeof(struct signalfd_siginfo));
+                if (size != sizeof(struct signalfd_siginfo))
+                    handle_error("read");
+
+                if (fdsi.ssi_signo == SIGSEND)
+                {
+                    // timerfd <- タイムアウト
+                }
+                else if (fdsi.ssi_signo == SIGCLOSE)
+                {
+                    return nullptr;
+                }
+                else
+                {
+                    fprintf(stderr, "read unexpected signal.\n");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+    }
+}
+
+void Socket::get_signalfd()
+{
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGSEND);
+    sigaddset(&mask, SIGCLOSE);
+    sigprocmask(SIG_BLOCK, &mask, NULL);
+    signalfd_ = signalfd(-1, &mask, SFD_CLOEXEC);
+    if (signalfd_ == -1)
+    {
+        throw std::exception();
+    }
+}
+
+int Socket::register_epoll_events()
+{
+    int epollfd;
+    struct epoll_event ev;
+
+    epollfd = epoll_create1(0);
+    if (epollfd == -1)
+    {
+        exit(EXIT_FAILURE);
+    }
+    
+    // Register sockfd_ in epollfd.
+    ev.events = EPOLLIN;
+    ev.data.fd = sockfd_;
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd_, &ev) == -1)
+    {
+        exit(EXIT_FAILURE);
+    }
+
+    // Register signalfd_ in epollfd.
+    ev.events = EPOLLIN;
+    ev.data.fd = signalfd_;
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, signalfd_, &ev) == -1)
+    {
+        exit(EXIT_FAILURE);
+    }
 }
 
 } // namespace multicast

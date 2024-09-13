@@ -2,7 +2,6 @@
 
 #include "ring_buffer.hpp"
 #include "tree.hpp"
-#include <boost/asio.hpp>
 #include <thread>
 #include <queue>
 
@@ -12,10 +11,15 @@ namespace multicast
 class Socket
 {
 public:
-    Socket(uint16_t port);
+    Socket();
+    Socket(uint64_t send_buff_size, uint64_t recv_buff_size);
     ~Socket();
 
-    void send(std::string msg, boost::asio::ip::udp::endpoint dest);
+    void open(uint16_t port);
+
+    void close();
+
+    void send();
 
     void recv();
 private:
@@ -23,34 +27,25 @@ private:
 
     void input_packet();
 
-    void background();
+    void* background();
 
-    struct header
-    {
-        uint64_t seq;
-        uint64_t first;
-        uint64_t last;
-        uint64_t len;
-        uint8_t flg;
-    };
+    void get_signalfd();
 
-    struct queue_entry
-    {
-    public:
-        uint64_t idx;
-        uint64_t seq;
-        uint64_t len;
-    };
+    int register_epoll_events();
 
-    // uint16_t port_;
-    // boost::asio::ip::udp::endpoint endpoint_;
-    boost::asio::io_context io_context_;
-    boost::asio::ip::udp::socket udp_sock_;
+    const int SIGSEND = SIGRTMIN;
+    const int SIGCLOSE = SIGRTMIN+1;
+    const int max_epoll_events = 16;
+
+    int sockfd_;
+    int signalfd_;
+    std::thread background_th_;
     // Tree tree_;
-    RingBuffer recv_buff_;
-    // std::priority_queue<queue_entry> queue_;
     uint64_t generated_seq_;
-    std::thread bgth_;
+    RingBuffer send_buff_;
+    // std::priority_queue<queue_entry> send_buff_info_;
+    RingBuffer recv_buff_; // vectorにして複数senderに対応できる
+    // std::priority_queue<queue_entry> recv_buff_info_;
 };
 
 }
