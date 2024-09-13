@@ -6,8 +6,6 @@
 #include <cstring>
 #include <algorithm>
 
-#define BUFFER_SIZE 4096
-
 namespace multicast
 {
 
@@ -32,15 +30,18 @@ public:
     //
     std::string get(uint64_t idx, uint64_t get_size);
 private:
-    unsigned char body_[BUFFER_SIZE]; // unsigned or signed
-    uint64_t write_idx_;
-    uint64_t read_idx_;
-
     //
     uint64_t get_min_valid_idx();
 
     //
     uint64_t get_max_valid_idx();
+
+    const uint64_t default_buffer_size = 4096;
+
+    unsigned char *body_;
+    uint64_t buffer_size_;
+    uint64_t write_idx_;
+    uint64_t read_idx_;
 };
 
 }

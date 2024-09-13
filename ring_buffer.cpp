@@ -1,26 +1,31 @@
 #include "ring_buffer.hpp"
 
-multicast::RingBuffer::RingBuffer()
+namespace multicast
 {
+
+RingBuffer::RingBuffer()
+{
+    body_ = new unsigned char[default_buffer_size];
+    buffer_size_ = default_buffer_size;
     write_idx_ = 0;
     read_idx_ = 0;
 }
 
-uint64_t multicast::RingBuffer::push(std::string push_str)
+uint64_t RingBuffer::push(std::string push_str)
 {
     uint64_t offset;
     uint64_t push_size = push_str.size();
 
-    if (push_size > BUFFER_SIZE - (write_idx_ - read_idx_))
+    if (push_size > buffer_size_ - (write_idx_ - read_idx_))
     {
         throw std::exception();
     }
 
-    offset = write_idx_ % BUFFER_SIZE;
-    if (offset + push_size > BUFFER_SIZE)
+    offset = write_idx_ % buffer_size_;
+    if (offset + push_size > buffer_size_)
     {
-        std::memcpy((void *)(body_ + offset), push_str.c_str(), BUFFER_SIZE);
-        std::memcpy((void *)body_, push_str.c_str() + (BUFFER_SIZE - offset), push_size - (BUFFER_SIZE - offset));
+        std::memcpy((void *)(body_ + offset), push_str.c_str(), buffer_size_);
+        std::memcpy((void *)body_, push_str.c_str() + (buffer_size_ - offset), push_size - (buffer_size_ - offset));
     }
     else
     {
@@ -31,9 +36,9 @@ uint64_t multicast::RingBuffer::push(std::string push_str)
     return write_idx_;
 }
 
-uint64_t multicast::RingBuffer::push_empty(uint64_t push_size)
+uint64_t RingBuffer::push_empty(uint64_t push_size)
 {
-    if (push_size > BUFFER_SIZE - (write_idx_ - read_idx_))
+    if (push_size > buffer_size_ - (write_idx_ - read_idx_))
     {
         throw std::exception();
     }
@@ -42,7 +47,7 @@ uint64_t multicast::RingBuffer::push_empty(uint64_t push_size)
     return write_idx_;
 }
 
-std::string multicast::RingBuffer::pop(uint64_t pop_size)
+std::string RingBuffer::pop(uint64_t pop_size)
 {
     std::string pop_str;
     try
@@ -59,7 +64,7 @@ std::string multicast::RingBuffer::pop(uint64_t pop_size)
     return pop_str;
 }
 
-void multicast::RingBuffer::set(uint64_t idx, std::string set_str)
+void RingBuffer::set(uint64_t idx, std::string set_str)
 {
     uint64_t offset;
     uint64_t set_size = set_str.size();
@@ -69,11 +74,11 @@ void multicast::RingBuffer::set(uint64_t idx, std::string set_str)
         throw std::exception();
     }
 
-    offset = idx % BUFFER_SIZE;
-    if (offset + set_size > BUFFER_SIZE)
+    offset = idx % buffer_size_;
+    if (offset + set_size > buffer_size_)
     {
-        std::memcpy((void *)(body_ + offset), set_str.c_str(), BUFFER_SIZE);
-        std::memcpy((void *)body_, set_str.c_str() + (BUFFER_SIZE - offset), set_size - (BUFFER_SIZE - offset));
+        std::memcpy((void *)(body_ + offset), set_str.c_str(), buffer_size_);
+        std::memcpy((void *)body_, set_str.c_str() + (buffer_size_ - offset), set_size - (buffer_size_ - offset));
     }
     else
     {
@@ -81,7 +86,7 @@ void multicast::RingBuffer::set(uint64_t idx, std::string set_str)
     }
 }
 
-std::string multicast::RingBuffer::get(uint64_t idx, uint64_t get_size)
+std::string RingBuffer::get(uint64_t idx, uint64_t get_size)
 {
     std::string get_str(get_size, '\0');
     uint64_t offset;
@@ -91,11 +96,11 @@ std::string multicast::RingBuffer::get(uint64_t idx, uint64_t get_size)
         throw std::exception();
     }
 
-    offset = idx % BUFFER_SIZE;
-    if (offset + get_size > BUFFER_SIZE)
+    offset = idx % buffer_size_;
+    if (offset + get_size > buffer_size_)
     {
-        std::memcpy((void *)get_str.c_str(), body_ + offset, BUFFER_SIZE - offset);
-        std::memcpy((void *)(get_str.c_str() + (BUFFER_SIZE - offset)), body_, get_size - (BUFFER_SIZE - offset));
+        std::memcpy((void *)get_str.c_str(), body_ + offset, buffer_size_ - offset);
+        std::memcpy((void *)(get_str.c_str() + (buffer_size_ - offset)), body_, get_size - (buffer_size_ - offset));
     }
     else
     {
@@ -105,19 +110,21 @@ std::string multicast::RingBuffer::get(uint64_t idx, uint64_t get_size)
     return get_str;
 }
 
-uint64_t multicast::RingBuffer::get_min_valid_idx()
+uint64_t RingBuffer::get_min_valid_idx()
 {
-    if (write_idx_ < BUFFER_SIZE)
+    if (write_idx_ < buffer_size_)
     {
         return 0;
     }
     else
     {
-        return write_idx_ - BUFFER_SIZE;
+        return write_idx_ - buffer_size_;
     }
 }
 
-uint64_t multicast::RingBuffer::get_max_valid_idx()
+uint64_t RingBuffer::get_max_valid_idx()
 {
     return write_idx_;
 }
+
+} // namespace multicast
