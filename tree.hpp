@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include "endpoint.hpp"
 
 namespace multicast
 {
@@ -12,7 +13,7 @@ public:
     ~NeighborGroup();
     void add_node();
 private:
-    // std::vector<boost::asio::ip::udp::endpoint> nodes;
+    std::vector<multicast::Endpoint> nodes;
 };
 
 class Tree

@@ -54,6 +54,11 @@ void Socket::close()
     ::close(sockfd_);
 }
 
+void Socket::add_node()
+{
+    
+}
+
 void Socket::send()
 {
     // msgを分割して，send_buff_に登録
@@ -81,7 +86,8 @@ void *Socket::background()
     struct epoll_event events[max_epoll_events];
     int epollfd, nfds;
     struct signalfd_siginfo fdsi;
-    ssize_t size;
+    ssize_t len;
+    Packet packet;
 
     epollfd = register_epoll_events();
 
@@ -95,23 +101,36 @@ void *Socket::background()
 
         for (int i = 0; i < nfds; ++i)
         {
+/**************************** multicast algorithm ********************************/
             if (events[i].data.fd == sockfd_)
             {
-                // input
+                input_packet();
 
-                // ACK
-                // NACK
-                // DATA
+                if (packet.type == ACK)
+                {
+
+                }
+                else if (packet.type == NACK)
+                {
+
+                }
+                else if (packet.type == DATA)
+                {
+                    
+                }
             }
             else if (events[i].data.fd == signalfd_)
             {
-                size = read(ss->sigfd, &fdsi, sizeof(struct signalfd_siginfo));
-                if (size != sizeof(struct signalfd_siginfo))
-                    handle_error("read");
+                len = read(signalfd_, &fdsi, sizeof(struct signalfd_siginfo));
+                if (len != sizeof(struct signalfd_siginfo))
+                {
+                    // error
+                }
 
                 if (fdsi.ssi_signo == SIGSEND)
                 {
                     // timerfd <- タイムアウト
+                    output_packet();
                 }
                 else if (fdsi.ssi_signo == SIGCLOSE)
                 {
@@ -120,9 +139,9 @@ void *Socket::background()
                 else
                 {
                     fprintf(stderr, "read unexpected signal.\n");
-                    exit(EXIT_FAILURE);
                 }
             }
+/*********************************************************************************/
         }
     }
 }
