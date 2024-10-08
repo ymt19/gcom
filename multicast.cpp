@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <netinet/in.h>
 #include <exception>
+#include <iostream>
 #include "multicast.hpp"
 
 namespace multicast
@@ -38,7 +39,7 @@ void Socket::open(uint16_t port)
 
     try
     {
-        get_signalfd();
+        signalfd_ = get_signalfd();
     }
     catch(const std::exception& e)
     {
@@ -46,24 +47,21 @@ void Socket::open(uint16_t port)
     }
 
     // thread
+    background_th_.emplace(&Socket::background, this);
 }
 
 void Socket::close()
 {
-    // join
+    kill(getpid(), SIGCLOSE);
+    background_th_->join();
     ::close(sockfd_);
 }
 
-void Socket::add_node()
-{
-    
-}
-
-void Socket::send()
+void Socket::send(MulticastGroup mgroup)
 {
     // msgを分割して，send_buff_に登録
     // seqをインクリメント
-    // backgroundに通知
+    kill(getpid(), SIGSEND);
 }
 
 void Socket::recv()
@@ -74,11 +72,13 @@ void Socket::recv()
 void Socket::output_packet()
 {
     // udp_sock_.send_to(asio::buffer(&msg, size, dest));
+    std::cout << "output packet" << std::endl;
 }
 
 void Socket::input_packet()
 {
     // udp_sock_.recv()
+    std::cout << "input packet" << std::endl;
 }
 
 void *Socket::background()
@@ -87,7 +87,7 @@ void *Socket::background()
     int epollfd, nfds;
     struct signalfd_siginfo fdsi;
     ssize_t len;
-    Packet packet;
+    // Packet packet;
 
     epollfd = register_epoll_events();
 
@@ -106,18 +106,18 @@ void *Socket::background()
             {
                 input_packet();
 
-                if (packet.type == ACK)
-                {
+                // if (packet.type == ACK)
+                // {
 
-                }
-                else if (packet.type == NACK)
-                {
+                // }
+                // else if (packet.type == NACK)
+                // {
 
-                }
-                else if (packet.type == DATA)
-                {
+                // }
+                // else if (packet.type == DATA)
+                // {
                     
-                }
+                // }
             }
             else if (events[i].data.fd == signalfd_)
             {
@@ -146,18 +146,20 @@ void *Socket::background()
     }
 }
 
-void Socket::get_signalfd()
+int Socket::get_signalfd()
 {
     sigset_t mask;
+    int fd;
     sigemptyset(&mask);
     sigaddset(&mask, SIGSEND);
     sigaddset(&mask, SIGCLOSE);
     sigprocmask(SIG_BLOCK, &mask, NULL);
-    signalfd_ = signalfd(-1, &mask, SFD_CLOEXEC);
-    if (signalfd_ == -1)
+    fd = signalfd(-1, &mask, SFD_CLOEXEC);
+    if (fd == -1)
     {
         throw std::exception();
     }
+    return fd;
 }
 
 int Socket::register_epoll_events()

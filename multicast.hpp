@@ -5,6 +5,7 @@
 #include <thread>
 #include <queue>
 #include <optional>
+#include <mutex>
 
 namespace multicast
 {
@@ -20,9 +21,7 @@ public:
 
     void close();
 
-    void add_node();
-
-    void send();
+    void send(MulticastGroup mgroup);
 
     void recv();
 private:
@@ -32,7 +31,7 @@ private:
 
     void* background();
 
-    void get_signalfd();
+    int get_signalfd();
 
     int register_epoll_events();
 
@@ -47,12 +46,14 @@ private:
         uint64_t first;
         uint64_t last;
         Endpoint src;
+        MulticastGroup mgroup;
     };
 
     int sockfd_;
     int signalfd_;
+
     std::optional<std::thread> background_th_;
-    Tree tree_;
+    std::mutex mtx_;
     uint64_t generated_seq_;
     RingBuffer send_buff_;
     std::priority_queue<struct queue_entry> send_buff_info_;
