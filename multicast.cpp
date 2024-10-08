@@ -8,7 +8,6 @@
 #include <exception>
 #include <iostream>
 #include "multicast.hpp"
-#include "endpoint.hpp"
 
 namespace multicast
 {

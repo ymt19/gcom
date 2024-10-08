@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ring_buffer.hpp"
+#include "endpoint.hpp"
 #include <thread>
 #include <queue>
 #include <optional>
