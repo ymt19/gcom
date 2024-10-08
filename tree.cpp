@@ -10,12 +10,12 @@ void multicast::NeighborGroup::add_node()
 
 }
 
-multicast::Tree::Tree()
+multicast::MulticastGroup::MulticastGroup()
 {
 
 }
 
-void multicast::Tree::add_group()
+void multicast::MulticastGroup::add_node()
 {
     
 }

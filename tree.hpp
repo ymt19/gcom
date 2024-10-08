@@ -16,12 +16,12 @@ private:
     std::vector<multicast::Endpoint> nodes;
 };
 
-class Tree
+class MulticastGroup
 {
 public:
-    Tree(/* args */);
-    ~Tree();
-    void add_group();
+    MulticastGroup(/* args */);
+    ~MulticastGroup();
+    void add_node();
 private:
     std::vector<NeighborGroup> groups;
 };
