@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ring_buffer.hpp"
-#include "tree.hpp"
 #include <thread>
 #include <queue>
 #include <optional>
