@@ -11,48 +11,36 @@ RingBuffer::RingBuffer()
     read_idx_ = 0;
 }
 
-uint64_t RingBuffer::push(std::string push_str)
+uint64_t RingBuffer::push(unsigned char *data, uint64_t size)
 {
     uint64_t offset;
-    uint64_t push_size = push_str.size();
 
-    if (push_size > buffer_size_ - (write_idx_ - read_idx_))
+    if (size > buffer_size_ - (write_idx_ - read_idx_))
     {
         throw std::exception();
     }
 
     offset = write_idx_ % buffer_size_;
-    if (offset + push_size > buffer_size_)
+    if (offset + size > buffer_size_)
     {
-        std::memcpy((void *)(body_ + offset), push_str.c_str(), buffer_size_);
-        std::memcpy((void *)body_, push_str.c_str() + (buffer_size_ - offset), push_size - (buffer_size_ - offset));
+        std::memcpy((void *)(body_ + offset), data, buffer_size_);
+        std::memcpy((void *)body_, data + (buffer_size_ - offset), size - (buffer_size_ - offset));
     }
     else
     {
-        std::memcpy((void *)(body_ + offset), push_str.c_str(), push_size);
+        std::memcpy((void *)(body_ + offset), data, size);
     }
 
-    write_idx_ += push_size;
+    write_idx_ += size;
     return write_idx_;
 }
 
-uint64_t RingBuffer::push_empty(uint64_t push_size)
-{
-    if (push_size > buffer_size_ - (write_idx_ - read_idx_))
-    {
-        throw std::exception();
-    }
-
-    write_idx_ += push_size;
-    return write_idx_;
-}
-
-std::string RingBuffer::pop(uint64_t pop_size)
+uint64_t RingBuffer::pop(unsigned char *data, uint64_t size)
 {
     std::string pop_str;
     try
     {
-        pop_str = get(read_idx_, pop_size);
+        get(read_idx_, data, size);
     }
     catch(const std::exception& e)
     {
@@ -60,54 +48,50 @@ std::string RingBuffer::pop(uint64_t pop_size)
     }
     
 
-    read_idx_ += pop_size;
-    return pop_str;
+    read_idx_ += size;
+    return read_idx_;
 }
 
-void RingBuffer::set(uint64_t idx, std::string set_str)
+void RingBuffer::set(uint64_t idx, unsigned char *data, uint64_t size)
 {
     uint64_t offset;
-    uint64_t set_size = set_str.size();
 
-    if (idx < read_idx_ || idx + set_size > write_idx_)
+    if (idx < read_idx_ || idx + size > write_idx_)
     {
         throw std::exception();
     }
 
     offset = idx % buffer_size_;
-    if (offset + set_size > buffer_size_)
+    if (offset + size > buffer_size_)
     {
-        std::memcpy((void *)(body_ + offset), set_str.c_str(), buffer_size_);
-        std::memcpy((void *)body_, set_str.c_str() + (buffer_size_ - offset), set_size - (buffer_size_ - offset));
+        std::memcpy((void *)(body_ + offset), data, buffer_size_);
+        std::memcpy((void *)body_, data + (buffer_size_ - offset), size - (buffer_size_ - offset));
     }
     else
     {
-        std::memcpy((void *)(body_ + offset), set_str.c_str(), set_size);
+        std::memcpy((void *)(body_ + offset), data, size);
     }
 }
 
-std::string RingBuffer::get(uint64_t idx, uint64_t get_size)
+void RingBuffer::get(uint64_t idx, unsigned char *data, uint64_t size)
 {
-    std::string get_str(get_size, '\0');
     uint64_t offset;
 
-    if (idx < get_min_valid_idx() || idx + get_size > get_max_valid_idx())
+    if (idx < get_min_valid_idx() || idx + size > get_max_valid_idx())
     {
         throw std::exception();
     }
 
     offset = idx % buffer_size_;
-    if (offset + get_size > buffer_size_)
+    if (offset + size > buffer_size_)
     {
-        std::memcpy((void *)get_str.c_str(), body_ + offset, buffer_size_ - offset);
-        std::memcpy((void *)(get_str.c_str() + (buffer_size_ - offset)), body_, get_size - (buffer_size_ - offset));
+        std::memcpy((void *)data, body_ + offset, buffer_size_ - offset);
+        std::memcpy((void *)(data + (buffer_size_ - offset)), body_, size - (buffer_size_ - offset));
     }
     else
     {
-        std::memcpy((void *)get_str.c_str(), body_ + offset, get_size);
+        std::memcpy((void *)data, body_ + offset, size);
     }
-
-    return get_str;
 }
 
 uint64_t RingBuffer::get_min_valid_idx()

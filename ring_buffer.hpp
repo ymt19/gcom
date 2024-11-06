@@ -16,19 +16,16 @@ public:
 
     // Allocates space in the buffer and writes data to it.
     // Returns new write index. 
-    uint64_t push(std::string push_str);
+    uint64_t push(unsigned char *data, uint64_t size);
 
-    // Allocates space in the buffer but does not write data to it.
-    uint64_t push_empty(uint64_t push_size);
-
-    // 
-    std::string pop(uint64_t pop_size);
+    // Return new read index.
+    uint64_t pop(unsigned char *data, uint64_t size);
 
     //
-    void set(uint64_t idx, std::string set_str);
+    void set(uint64_t idx, unsigned char *data, uint64_t size);
 
     //
-    std::string get(uint64_t idx, uint64_t get_size);
+    void get(uint64_t idx, unsigned char *data, uint64_t size);
 private:
     //
     uint64_t get_min_valid_idx();
