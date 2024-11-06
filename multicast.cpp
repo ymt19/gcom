@@ -21,6 +21,7 @@ Socket::~Socket() {}
 
 void Socket::open(uint16_t port)
 {
+    std::cerr << "open" << std::endl;
     struct sockaddr_in addr;
 
     sockfd_ = socket(AF_INET, SOCK_DGRAM, 0);
@@ -52,13 +53,18 @@ void Socket::open(uint16_t port)
 
 void Socket::close()
 {
+    std::cerr << "close start" << std::endl;
+
     kill(getpid(), SIGCLOSE);
     background_th_->join();
     ::close(sockfd_);
+
+    std::cerr << "close end" << std::endl;
 }
 
-void Socket::send(MulticastGroup mgroup)
+void Socket::send()
 {
+    std::cerr << "send" << std::endl;
     // msgを分割して，send_buff_に登録
     // seqをインクリメント
     kill(getpid(), SIGSEND);
@@ -66,6 +72,7 @@ void Socket::send(MulticastGroup mgroup)
 
 void Socket::recv()
 {
+    std::cerr << "recv" << std::endl;
     // recv_buff_から取得
 }
 
@@ -83,6 +90,7 @@ void Socket::input_packet()
 
 void *Socket::background()
 {
+    std::cerr << "background" << std::endl;
     struct epoll_event events[max_epoll_events];
     int epollfd, nfds;
     struct signalfd_siginfo fdsi;
@@ -129,11 +137,13 @@ void *Socket::background()
 
                 if (fdsi.ssi_signo == SIGSEND)
                 {
+                    std::cerr << "SIGSEND" << std::endl;
                     // timerfd <- タイムアウト
                     output_packet();
                 }
                 else if (fdsi.ssi_signo == SIGCLOSE)
                 {
+                    std::cerr << "SIGCLOSE" << std::endl;
                     return nullptr;
                 }
                 else
@@ -188,6 +198,8 @@ int Socket::register_epoll_events()
     {
         exit(EXIT_FAILURE);
     }
+
+    return epollfd;
 }
 
 } // namespace multicast

@@ -2,6 +2,7 @@
 
 #include "ring_buffer.hpp"
 #include "endpoint.hpp"
+#include <signal.h>
 #include <thread>
 #include <queue>
 #include <optional>
@@ -9,6 +10,23 @@
 
 namespace multicast
 {
+
+#define MAX_PACKET_SIZE 0
+#define MAX_PAYLOAD_SIZE 0
+
+struct header
+{
+    uint32_t seq;
+    uint32_t first;
+    uint32_t last;
+    uint8_t flag;
+};
+
+struct packet
+{
+    struct header hdr;
+    unsigned char payload[MAX_PAYLOAD_SIZE];
+};
 
 class Socket
 {
@@ -21,7 +39,7 @@ public:
 
     void close();
 
-    void send(MulticastGroup mgroup);
+    void send();
 
     void recv();
 private:
@@ -39,15 +57,15 @@ private:
     const int SIGCLOSE = SIGRTMIN+1;
     const int max_epoll_events = 16;
 
-    struct queue_entry
-    {
-        uint64_t idx;
-        uint64_t seq;
-        uint64_t first;
-        uint64_t last;
-        Endpoint src;
-        MulticastGroup mgroup;
-    };
+    // struct queue_entry
+    // {
+    //     uint64_t idx;
+    //     uint64_t seq;
+    //     uint64_t first;
+    //     uint64_t last;
+    //     Endpoint src;
+    //     MulticastGroup mgroup;
+    // };
 
     int sockfd_;
     int signalfd_;
@@ -59,22 +77,6 @@ private:
     std::priority_queue<struct queue_entry> send_buff_info_;
     RingBuffer recv_buff_;
     std::priority_queue<struct queue_entry> recv_buff_info_;
-};
-
-class Packet
-{
-public:
-    int type;
-private:
-    struct header
-    {
-        uint32_t seq;
-        uint32_t first;
-        uint32_t last;
-        uint8_t flag;
-    };
-
-    struct header hdr;
 };
 
 }
