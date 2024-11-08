@@ -15,7 +15,7 @@ public:
     RingBuffer();
 
     // Allocates space in the buffer and writes data to it.
-    // Returns new write index. 
+    // Returns prev write index. 
     uint64_t push(unsigned char *data, uint64_t size);
 
     // Return new read index.

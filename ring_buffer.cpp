@@ -14,6 +14,7 @@ RingBuffer::RingBuffer()
 uint64_t RingBuffer::push(unsigned char *data, uint64_t size)
 {
     uint64_t offset;
+    uint64_t prev_write_idx;
 
     if (size > buffer_size_ - (write_idx_ - read_idx_))
     {
@@ -31,8 +32,9 @@ uint64_t RingBuffer::push(unsigned char *data, uint64_t size)
         std::memcpy((void *)(body_ + offset), data, size);
     }
 
+    prev_write_idx = write_idx_;
     write_idx_ += size;
-    return write_idx_;
+    return prev_write_idx;
 }
 
 uint64_t RingBuffer::pop(unsigned char *data, uint64_t size)
