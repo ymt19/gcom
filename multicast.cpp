@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <exception>
 #include <iostream>
 #include "multicast.hpp"
@@ -17,13 +18,16 @@ Socket::Socket()
     signalfd_(-1),
     generated_seq_(0) {}
 
-Socket::~Socket() {}
+Socket::~Socket() {
+    // close();
+}
 
 void Socket::open(uint16_t port)
 {
     std::cerr << "open" << std::endl;
     struct sockaddr_in addr;
 
+    // init sockfd_
     sockfd_ = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd_ == -1)
     {
@@ -38,6 +42,7 @@ void Socket::open(uint16_t port)
         throw std::exception();
     }
 
+    // init signalfd_
     try
     {
         signalfd_ = get_signalfd();
@@ -47,7 +52,7 @@ void Socket::open(uint16_t port)
         throw std::exception();
     }
 
-    // thread
+    // start background thread
     background_th_.emplace(&Socket::background, this);
 }
 
@@ -62,30 +67,67 @@ void Socket::close()
     std::cerr << "close end" << std::endl;
 }
 
-void Socket::send()
+ssize_t Socket::sendto(const void *data, size_t len)
 {
     std::cerr << "send" << std::endl;
     // msgを分割して，send_buff_に登録
     // seqをインクリメント
     kill(getpid(), SIGSEND);
+
+    return 0;
 }
 
-void Socket::recv()
+ssize_t Socket::recvfrom(void *data, size_t len)
 {
     std::cerr << "recv" << std::endl;
     // recv_buff_から取得
+    return 0;
 }
 
-void Socket::output_packet()
+ssize_t Socket::output_packet(uint32_t seq, const void *payload, size_t len)
 {
-    // udp_sock_.send_to(asio::buffer(&msg, size, dest));
     std::cout << "output packet" << std::endl;
+
+    unsigned char buf[MAX_PACKET_SIZE] = {};
+    struct header *hdr;
+    uint32_t total;
+    struct sockaddr_in dest;
+
+    hdr = (struct header *)buf;
+    hdr->seq = seq;
+    std::memcpy(hdr + 1, payload, len);
+    total = sizeof(struct header) + len;
+
+    std::memset(&dest, 0, sizeof(dest));
+    dest.sin_family = AF_INET;
+    dest.sin_addr.s_addr = inet_addr("127.0.0.1");
+    dest.sin_port = htons(10001);
+
+    // loop回したほうがいいのか
+    if (::sendto(sockfd_, buf, total, 0, (struct sockaddr *)&dest, sizeof(dest)) == -1)
+    {
+        return -1;
+    }
+    return total;
 }
 
-void Socket::input_packet()
+size_t Socket::input_packet(uint32_t *seq, void *payload)
 {
-    // udp_sock_.recv()
     std::cout << "input packet" << std::endl;
+
+    unsigned char buf[MAX_PACKET_SIZE] = {};
+    ssize_t len, payload_len;
+    struct header *hdr;
+    struct sockaddr_in src;
+    socklen_t srclen = sizeof(src);
+
+    len = ::recvfrom(sockfd_, buf, MAX_PACKET_SIZE, 0, (struct sockaddr *)&src, &srclen);
+    payload_len = len - sizeof(struct header);
+    hdr = (struct header *)buf;
+    *seq = hdr->seq;
+    std::memcpy(payload, buf + sizeof(struct header), payload_len);
+
+    return payload_len;
 }
 
 void *Socket::background()
@@ -94,8 +136,9 @@ void *Socket::background()
     struct epoll_event events[max_epoll_events];
     int epollfd, nfds;
     struct signalfd_siginfo fdsi;
+    unsigned char payload[MAX_PAYLOAD_SIZE];
     ssize_t len;
-    // Packet packet;
+    uint32_t seq;
 
     epollfd = register_epoll_events();
 
@@ -112,7 +155,8 @@ void *Socket::background()
 /**************************** multicast algorithm ********************************/
             if (events[i].data.fd == sockfd_)
             {
-                input_packet();
+                len = input_packet(&seq, payload);
+                std::cout << len << " " << seq << " " << payload << std::endl;
 
                 // if (packet.type == ACK)
                 // {
@@ -124,7 +168,9 @@ void *Socket::background()
                 // }
                 // else if (packet.type == DATA)
                 // {
-                    
+                
+                // recv buffに代入
+
                 // }
             }
             else if (events[i].data.fd == signalfd_)
@@ -139,7 +185,10 @@ void *Socket::background()
                 {
                     std::cerr << "SIGSEND" << std::endl;
                     // timerfd <- タイムアウト
-                    output_packet();
+                    generated_seq_++;
+                    std::string mess("hello, konbanha.");
+                    len = output_packet(generated_seq_, mess.c_str(), mess.size());
+                    std::cout << mess.size() << " " << len << " " << generated_seq_ << " " << mess << std::endl;
                 }
                 else if (fdsi.ssi_signo == SIGCLOSE)
                 {

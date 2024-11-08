@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ring_buffer.hpp"
-#include "endpoint.hpp"
+// #include "endpoint.hpp"
 #include <signal.h>
 #include <thread>
 #include <queue>
@@ -11,41 +11,45 @@
 namespace multicast
 {
 
-#define MAX_PACKET_SIZE 0
-#define MAX_PAYLOAD_SIZE 0
-
 struct header
 {
     uint32_t seq;
-    uint32_t first;
-    uint32_t last;
-    uint8_t flag;
 };
 
-struct packet
+#define MAX_PACKET_SIZE     1472 // max udp payload size
+#define MAX_PAYLOAD_SIZE    MAX_PACKET_SIZE - sizeof(struct header)
+
+class packet_info
 {
-    struct header hdr;
-    unsigned char payload[MAX_PAYLOAD_SIZE];
+public:
+    uint64_t idx;
+    uint64_t seq;
+
+    packet_info(uint64_t idx, uint64_t seq) : idx(idx), seq(seq) {}
+
+    bool operator< (const packet_info& a) const
+    {
+        return idx < a.idx;
+    }
 };
 
 class Socket
 {
 public:
     Socket();
-    Socket(uint64_t send_buff_size, uint64_t recv_buff_size);
     ~Socket();
 
     void open(uint16_t port);
 
     void close();
 
-    void send();
+    ssize_t sendto(const void *buf, size_t len);
 
-    void recv();
+    ssize_t recvfrom(void *buf, size_t len);
 private:
-    void output_packet();
+    ssize_t output_packet(uint32_t seq, const void *payload, size_t len);
 
-    void input_packet();
+    size_t input_packet(uint32_t *seq, void *payload);
 
     void* background();
 
@@ -57,16 +61,6 @@ private:
     const int SIGCLOSE = SIGRTMIN+1;
     const int max_epoll_events = 16;
 
-    // struct queue_entry
-    // {
-    //     uint64_t idx;
-    //     uint64_t seq;
-    //     uint64_t first;
-    //     uint64_t last;
-    //     Endpoint src;
-    //     MulticastGroup mgroup;
-    // };
-
     int sockfd_;
     int signalfd_;
 
@@ -74,9 +68,9 @@ private:
     std::mutex mtx_;
     uint64_t generated_seq_;
     RingBuffer send_buff_;
-    std::priority_queue<struct queue_entry> send_buff_info_;
+    std::priority_queue<packet_info> send_buf_queue;
     RingBuffer recv_buff_;
-    std::priority_queue<struct queue_entry> recv_buff_info_;
+    std::priority_queue<packet_info> recv_buf_queue;
 };
 
 }
