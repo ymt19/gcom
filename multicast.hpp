@@ -22,14 +22,20 @@ struct header
 class packet_info
 {
 public:
-    uint64_t idx;
-    uint64_t seq;
+    uint64_t idx_;
+    uint64_t seq_;
+    uint32_t len_;
 
-    packet_info(uint64_t idx, uint64_t seq) : idx(idx), seq(seq) {}
+    packet_info(uint64_t idx, uint64_t seq, uint32_t len)
+    {
+        idx_ = idx;
+        seq_ = seq;
+        len_ = len;
+    }
 
     bool operator< (const packet_info& a) const
     {
-        return idx < a.idx;
+        return idx_ < a.idx_;
     }
 };
 
@@ -67,10 +73,10 @@ private:
     std::optional<std::thread> background_th_;
     std::mutex mtx_;
     uint64_t generated_seq_;
-    RingBuffer send_buff_;
-    std::priority_queue<packet_info> send_buf_queue;
-    RingBuffer recv_buff_;
-    std::priority_queue<packet_info> recv_buf_queue;
+    RingBuffer send_buf_;
+    std::queue<packet_info> send_buf_info_;
+    RingBuffer recv_buf_;
+    std::priority_queue<packet_info> recv_buf_info_;
 };
 
 }

@@ -13,10 +13,12 @@
 namespace multicast
 {
 
-Socket::Socket() 
-    : sockfd_(-1),
-    signalfd_(-1),
-    generated_seq_(0) {}
+Socket::Socket()
+{
+    sockfd_ = -1;
+    signalfd_ = -1;
+    generated_seq_ = 0;
+}
 
 Socket::~Socket() {
     // close();
@@ -72,8 +74,13 @@ ssize_t Socket::sendto(const void *data, size_t len)
     std::cerr << "send" << std::endl;
     // msgを分割して，send_buff_に登録
     // seqをインクリメント
-    kill(getpid(), SIGSEND);
+    uint64_t idx;
 
+    idx = send_buf_.push((unsigned char *)data, len);
+    generated_seq_++;
+    send_buf_info_.push(packet_info(idx, generated_seq_, len));
+
+    kill(getpid(), SIGSEND);
     return 0;
 }
 
@@ -185,10 +192,14 @@ void *Socket::background()
                 {
                     std::cerr << "SIGSEND" << std::endl;
                     // timerfd <- タイムアウト
-                    generated_seq_++;
-                    std::string mess("hello, konbanha.");
-                    len = output_packet(generated_seq_, mess.c_str(), mess.size());
-                    std::cout << mess.size() << " " << len << " " << generated_seq_ << " " << mess << std::endl;
+                    while (!send_buf_info_.empty())
+                    {
+                        packet_info& pack = send_buf_info_.front();
+                        send_buf_.get(pack.idx_, payload, pack.len_);
+                        len = output_packet(pack.seq_, payload, pack.len_);
+                        std::cout << pack.len_ << " " << len << " " << pack.seq_ << " " << payload << std::endl;
+                        send_buf_info_.pop();
+                    }
                 }
                 else if (fdsi.ssi_signo == SIGCLOSE)
                 {
