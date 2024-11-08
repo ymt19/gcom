@@ -76,19 +76,36 @@ ssize_t Socket::sendto(const void *data, size_t len)
     // seqをインクリメント
     uint64_t idx;
 
-    idx = send_buf_.push((unsigned char *)data, len);
+    idx = sendbuf_.push((unsigned char *)data, len);
     generated_seq_++;
-    send_buf_info_.push(packet_info(idx, generated_seq_, len));
+    sendbuf_info_.push(packet_info(idx, generated_seq_, len));
 
     kill(getpid(), SIGSEND);
     return 0;
 }
 
-ssize_t Socket::recvfrom(void *data, size_t len)
+ssize_t Socket::recvfrom(void *data)
 {
     std::cerr << "recv" << std::endl;
-    // recv_buff_から取得
-    return 0;
+
+    uint32_t len = 0;
+    for (;;)
+    {
+        if (!recvbuf_info_.empty())
+        {
+            recvbuf_mtx_.lock();
+            const packet_info& packet = recvbuf_info_.top();
+            recvbuf_info_.pop();
+            len += packet.len_;
+            recvbuf_mtx_.unlock();
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::microseconds(1));
+    }
+    recvbuf_mtx_.lock();
+    recvbuf_.pop((unsigned char *)data, len);
+    recvbuf_mtx_.unlock();
+    return len;
 }
 
 ssize_t Socket::output_packet(uint32_t seq, const void *payload, size_t len)
@@ -111,11 +128,8 @@ ssize_t Socket::output_packet(uint32_t seq, const void *payload, size_t len)
     dest.sin_port = htons(10001);
 
     // loop回したほうがいいのか
-    if (::sendto(sockfd_, buf, total, 0, (struct sockaddr *)&dest, sizeof(dest)) == -1)
-    {
-        return -1;
-    }
-    return total;
+    len = ::sendto(sockfd_, buf, total, 0, (struct sockaddr *)&dest, sizeof(dest));
+    return len; // -1の場合sendto()error
 }
 
 size_t Socket::input_packet(uint32_t *seq, void *payload)
@@ -145,6 +159,7 @@ void *Socket::background()
     struct signalfd_siginfo fdsi;
     unsigned char payload[MAX_PAYLOAD_SIZE];
     ssize_t len;
+    uint64_t idx;
     uint32_t seq;
 
     epollfd = register_epoll_events();
@@ -165,19 +180,19 @@ void *Socket::background()
                 len = input_packet(&seq, payload);
                 std::cout << len << " " << seq << " " << payload << std::endl;
 
+                recvbuf_mtx_.lock();
+                idx = recvbuf_.push(payload, len);
+                recvbuf_info_.push(packet_info(idx, seq, len));
+                recvbuf_mtx_.unlock();
+
                 // if (packet.type == ACK)
                 // {
-
                 // }
                 // else if (packet.type == NACK)
                 // {
-
                 // }
                 // else if (packet.type == DATA)
                 // {
-                
-                // recv buffに代入
-
                 // }
             }
             else if (events[i].data.fd == signalfd_)
@@ -191,14 +206,13 @@ void *Socket::background()
                 if (fdsi.ssi_signo == SIGSEND)
                 {
                     std::cerr << "SIGSEND" << std::endl;
-                    // timerfd <- タイムアウト
-                    while (!send_buf_info_.empty())
+                    while (!sendbuf_info_.empty())
                     {
-                        packet_info& pack = send_buf_info_.front();
-                        send_buf_.get(pack.idx_, payload, pack.len_);
+                        packet_info& pack = sendbuf_info_.front();
+                        sendbuf_.get(pack.idx_, payload, pack.len_);
                         len = output_packet(pack.seq_, payload, pack.len_);
                         std::cout << pack.len_ << " " << len << " " << pack.seq_ << " " << payload << std::endl;
-                        send_buf_info_.pop();
+                        sendbuf_info_.pop();
                     }
                 }
                 else if (fdsi.ssi_signo == SIGCLOSE)

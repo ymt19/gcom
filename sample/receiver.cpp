@@ -13,9 +13,8 @@ int main(void) {
 
     sock.open(DEST_PORT);
     for (;;) {
-        std::cin >> a;
-        if (a == 0) break;
+        sock.recvfrom(buf);
+        std::cout << buf << std::endl;
     }
-    sock.recvfrom(buf, 256);
     sock.close();
 }

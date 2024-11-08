@@ -51,7 +51,7 @@ public:
 
     ssize_t sendto(const void *buf, size_t len);
 
-    ssize_t recvfrom(void *buf, size_t len);
+    ssize_t recvfrom(void *buf);
 private:
     ssize_t output_packet(uint32_t seq, const void *payload, size_t len);
 
@@ -71,12 +71,13 @@ private:
     int signalfd_;
 
     std::optional<std::thread> background_th_;
-    std::mutex mtx_;
+    std::mutex sendbuf_mtx_;
     uint64_t generated_seq_;
-    RingBuffer send_buf_;
-    std::queue<packet_info> send_buf_info_;
-    RingBuffer recv_buf_;
-    std::priority_queue<packet_info> recv_buf_info_;
+    RingBuffer sendbuf_;
+    std::mutex recvbuf_mtx_;
+    std::queue<packet_info> sendbuf_info_;
+    RingBuffer recvbuf_;
+    std::priority_queue<packet_info> recvbuf_info_;
 };
 
 }
