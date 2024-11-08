@@ -1,37 +1,37 @@
 #pragma once
 
-#include <sys/types.h>
-#include <vector>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <set>
+#include <map>
 
 namespace multicast
 {
-class Endpoint
+
+class endpoint_list
 {
 public:
-    Endpoint(/* args */);
-    ~Endpoint();
+    void add_endpoint(int id, char *ipaddr, uint16_t port)
+    {
+        body_.insert();
+    }
 private:
-    struct sockaddr addr;
+    class endpoint
+    {
+    public:
+        endpoint(char *ipaddr, uint16_t port)
+        {
+            addr_.sin_family = AF_INET;
+            addr_.sin_addr.s_addr = inet_addr(ipaddr);
+            addr_.sin_port = htons(port);
+        }
+    private:
+        struct sockaddr_in addr_;
+    };
+
+    std::map<int, endpoint> body_{};
+    std::set<int> group_{};
 };
-
-// class NeighborGroup
-// {
-// public:
-//     NeighborGroup(/* args */);
-//     ~NeighborGroup();
-//     void add_node();
-// private:
-//     std::vector<multicast::Endpoint> nodes;
-// };
-
-// class MulticastGroup
-// {
-// public:
-//     MulticastGroup(/* args */);
-//     ~MulticastGroup();
-//     void add_node();
-// private:
-//     std::vector<NeighborGroup> groups;
-// };
 
 } // namespace multicast

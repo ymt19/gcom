@@ -69,7 +69,7 @@ void Socket::close()
     std::cerr << "close end" << std::endl;
 }
 
-ssize_t Socket::sendto(const void *data, size_t len)
+ssize_t Socket::sendto(const void *data, size_t len, int id)
 {
     std::cerr << "send" << std::endl;
     // msgを分割して，send_buff_に登録
@@ -203,6 +203,7 @@ void *Socket::background()
                 if (len != sizeof(struct signalfd_siginfo))
                 {
                     // error
+                    continue;
                 }
 
                 if (fdsi.ssi_signo == SIGSEND)
@@ -219,6 +220,7 @@ void *Socket::background()
                         sendbuf_info_.pop();
                     }
                     sendbuf_mtx_.unlock();
+                    continue;
                 }
                 else if (fdsi.ssi_signo == SIGCLOSE)
                 {
@@ -228,6 +230,7 @@ void *Socket::background()
                 else
                 {
                     fprintf(stderr, "read unexpected signal.\n");
+                    continue;
                 }
             }
 /*********************************************************************************/

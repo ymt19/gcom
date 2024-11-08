@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ring_buffer.hpp"
-// #include "endpoint.hpp"
+#include "endpoint.hpp"
 #include <signal.h>
 #include <thread>
 #include <queue>
@@ -49,9 +49,11 @@ public:
 
     void close();
 
-    ssize_t sendto(const void *buf, size_t len);
+    ssize_t sendto(const void *buf, size_t len, int id);
 
     ssize_t recvfrom(void *buf);
+
+    int add_node(int id, char *ipaddr, uint16_t port);
 private:
     ssize_t output_packet(uint32_t seq, const void *payload, size_t len);
 
@@ -80,6 +82,8 @@ private:
     std::mutex recvbuf_mtx_;
     RingBuffer recvbuf_;
     std::priority_queue<packet_info> recvbuf_info_;
+
+    endpoint_list dest_info_;
 };
 
 }
