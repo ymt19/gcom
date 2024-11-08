@@ -76,9 +76,11 @@ ssize_t Socket::sendto(const void *data, size_t len)
     // seqをインクリメント
     uint64_t idx;
 
+    sendbuf_mtx_.lock();
     idx = sendbuf_.push((unsigned char *)data, len);
     generated_seq_++;
     sendbuf_info_.push(packet_info(idx, generated_seq_, len));
+    sendbuf_mtx_.unlock();
 
     kill(getpid(), SIGSEND);
     return 0;
@@ -206,6 +208,8 @@ void *Socket::background()
                 if (fdsi.ssi_signo == SIGSEND)
                 {
                     std::cerr << "SIGSEND" << std::endl;
+
+                    sendbuf_mtx_.lock();
                     while (!sendbuf_info_.empty())
                     {
                         packet_info& pack = sendbuf_info_.front();
@@ -214,6 +218,7 @@ void *Socket::background()
                         std::cout << pack.len_ << " " << len << " " << pack.seq_ << " " << payload << std::endl;
                         sendbuf_info_.pop();
                     }
+                    sendbuf_mtx_.unlock();
                 }
                 else if (fdsi.ssi_signo == SIGCLOSE)
                 {

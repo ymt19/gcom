@@ -71,11 +71,13 @@ private:
     int signalfd_;
 
     std::optional<std::thread> background_th_;
+
     std::mutex sendbuf_mtx_;
     uint64_t generated_seq_;
     RingBuffer sendbuf_;
-    std::mutex recvbuf_mtx_;
     std::queue<packet_info> sendbuf_info_;
+
+    std::mutex recvbuf_mtx_;
     RingBuffer recvbuf_;
     std::priority_queue<packet_info> recvbuf_info_;
 };
