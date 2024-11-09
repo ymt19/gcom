@@ -216,7 +216,17 @@ void *Socket::background()
                     {
                         packet_info& pack = sendbuf_info_.front();
                         sendbuf_.get(pack.idx_, payload, pack.len_);
-                        len = output_packet(pack.seq_, payload, pack.len_, pack.dest_id_);
+                        if (pack.dest_id_ == 0)
+                        {
+                            for (auto dest = endpoint_list_.begin(); dest != endpoint_list_.end(); ++dest)
+                            {
+                                len = output_packet(pack.seq_, payload, pack.len_, dest->first);
+                            }
+                        }
+                        else
+                        {
+                            len = output_packet(pack.seq_, payload, pack.len_, pack.dest_id_);
+                        }
                         std::cout << pack.len_ << " " << len << " " << pack.seq_ << " " << payload << std::endl;
                         sendbuf_info_.pop();
                     }
