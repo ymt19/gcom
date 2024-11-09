@@ -121,20 +121,17 @@ ssize_t Socket::output_packet(uint32_t seq, const void *payload, size_t len, int
     unsigned char buf[MAX_PACKET_SIZE] = {};
     struct header *hdr;
     uint32_t total;
-    struct sockaddr_in dest;
 
     hdr = (struct header *)buf;
     hdr->seq = seq;
     std::memcpy(hdr + 1, payload, len);
     total = sizeof(struct header) + len;
 
-    std::memset(&dest, 0, sizeof(dest));
-    dest.sin_family = AF_INET;
-    dest.sin_addr.s_addr = inet_addr("127.0.0.1");
-    dest.sin_port = htons(10001);
+    // 1. loop回したほうがいいのか？
+    // 2. std::map endpoint_list_の参照は参照ではなくていいのか？
+    endpoint dest = endpoint_list_.at(dest_id);
+    len = ::sendto(sockfd_, buf, total, 0, (struct sockaddr *)&(dest.addr_), sizeof(dest.addr_));
 
-    // loop回したほうがいいのか
-    len = ::sendto(sockfd_, buf, total, 0, (struct sockaddr *)&dest, sizeof(dest));
     return len; // -1の場合sendto()error
 }
 

@@ -13,10 +13,12 @@ int main(void) {
 
     sock.open(SRC_PORT);
 
+    sock.add_endpoint(1, (char *)DEST_ADDR, DEST_PORT, true);
+
     for (;;)
     {
         std::cin >> str;
-        sock.sendto(str.c_str(), str.size());
+        sock.sendto(str.c_str(), str.size(), 1);
     }
     sock.close();
 }

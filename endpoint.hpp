@@ -17,7 +17,7 @@ public:
         addr_.sin_port = htons(port);
         is_group_node_ = is_group_node;
     }
-private:
+
     struct sockaddr_in addr_;
     bool is_group_node_;
 };
