@@ -3,35 +3,23 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <set>
-#include <map>
 
 namespace multicast
 {
 
-class endpoint_list
+class endpoint
 {
 public:
-    void add_endpoint(int id, char *ipaddr, uint16_t port)
+    endpoint(char *ipaddr, uint16_t port, bool is_group_node)
     {
-        body_.insert();
+        addr_.sin_family = AF_INET;
+        addr_.sin_addr.s_addr = inet_addr(ipaddr);
+        addr_.sin_port = htons(port);
+        is_group_node_ = is_group_node;
     }
 private:
-    class endpoint
-    {
-    public:
-        endpoint(char *ipaddr, uint16_t port)
-        {
-            addr_.sin_family = AF_INET;
-            addr_.sin_addr.s_addr = inet_addr(ipaddr);
-            addr_.sin_port = htons(port);
-        }
-    private:
-        struct sockaddr_in addr_;
-    };
-
-    std::map<int, endpoint> body_{};
-    std::set<int> group_{};
+    struct sockaddr_in addr_;
+    bool is_group_node_;
 };
 
 } // namespace multicast

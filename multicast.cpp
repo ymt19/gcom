@@ -69,7 +69,7 @@ void Socket::close()
     std::cerr << "close end" << std::endl;
 }
 
-ssize_t Socket::sendto(const void *data, size_t len, int id)
+void Socket::sendto(const void *data, size_t len, int dest_id)
 {
     std::cerr << "send" << std::endl;
     // msgを分割して，send_buff_に登録
@@ -79,11 +79,10 @@ ssize_t Socket::sendto(const void *data, size_t len, int id)
     sendbuf_mtx_.lock();
     idx = sendbuf_.push((unsigned char *)data, len);
     generated_seq_++;
-    sendbuf_info_.push(packet_info(idx, generated_seq_, len));
+    sendbuf_info_.push(packet_info(idx, generated_seq_, len, dest_id));
     sendbuf_mtx_.unlock();
 
     kill(getpid(), SIGSEND);
-    return 0;
 }
 
 ssize_t Socket::recvfrom(void *data)
@@ -110,7 +109,12 @@ ssize_t Socket::recvfrom(void *data)
     return len;
 }
 
-ssize_t Socket::output_packet(uint32_t seq, const void *payload, size_t len)
+void Socket::add_endpoint(int id, char *ipaddr, uint16_t port, bool is_same_group)
+{
+    endpoint_list_.insert(std::make_pair(id, endpoint(ipaddr, port, is_same_group)));
+}
+
+ssize_t Socket::output_packet(uint32_t seq, const void *payload, size_t len, int dest_id)
 {
     std::cout << "output packet" << std::endl;
 
@@ -184,7 +188,7 @@ void *Socket::background()
 
                 recvbuf_mtx_.lock();
                 idx = recvbuf_.push(payload, len);
-                recvbuf_info_.push(packet_info(idx, seq, len));
+                recvbuf_info_.push(packet_info(idx, seq, len, -1));
                 recvbuf_mtx_.unlock();
 
                 // if (packet.type == ACK)
@@ -215,7 +219,7 @@ void *Socket::background()
                     {
                         packet_info& pack = sendbuf_info_.front();
                         sendbuf_.get(pack.idx_, payload, pack.len_);
-                        len = output_packet(pack.seq_, payload, pack.len_);
+                        len = output_packet(pack.seq_, payload, pack.len_, pack.dest_id_);
                         std::cout << pack.len_ << " " << len << " " << pack.seq_ << " " << payload << std::endl;
                         sendbuf_info_.pop();
                     }

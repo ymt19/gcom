@@ -7,6 +7,7 @@
 #include <queue>
 #include <optional>
 #include <mutex>
+#include <map>
 
 namespace multicast
 {
@@ -25,12 +26,16 @@ public:
     uint64_t idx_;
     uint64_t seq_;
     uint32_t len_;
+    // int src_id_;    // send bufの場合-1
+    int dest_id_;   // recv bufの場合-1
 
-    packet_info(uint64_t idx, uint64_t seq, uint32_t len)
+    packet_info(uint64_t idx, uint64_t seq, uint32_t len, int dest_id)
     {
         idx_ = idx;
         seq_ = seq;
         len_ = len;
+        // src_id_ = src_id;
+        dest_id_ = dest_id;
     }
 
     bool operator< (const packet_info& a) const
@@ -49,13 +54,20 @@ public:
 
     void close();
 
-    ssize_t sendto(const void *buf, size_t len, int id);
+    /**
+     * @brief 
+     * 
+     * @param buf 送信データ
+     * @param len 送信データ長
+     * @param dest_id 送信先ID，0の場合登録されているすべてのノードに送信
+     */
+    void sendto(const void *buf, size_t len, int dest_id);
 
     ssize_t recvfrom(void *buf);
 
-    int add_node(int id, char *ipaddr, uint16_t port);
+    void add_endpoint(int id, char *ipaddr, uint16_t port, bool is_same_group);
 private:
-    ssize_t output_packet(uint32_t seq, const void *payload, size_t len);
+    ssize_t output_packet(uint32_t seq, const void *payload, size_t len, int dest_id);
 
     size_t input_packet(uint32_t *seq, void *payload);
 
@@ -83,7 +95,7 @@ private:
     RingBuffer recvbuf_;
     std::priority_queue<packet_info> recvbuf_info_;
 
-    endpoint_list dest_info_;
+    std::map<int, endpoint> endpoint_list_; // id : endpoint info, id >= 1
 };
 
 }
