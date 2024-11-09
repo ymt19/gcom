@@ -27,6 +27,8 @@ Socket::~Socket() {
 void Socket::open(uint16_t port)
 {
     std::cerr << "open" << std::endl;
+    std::cout << "MAX_PACKET_SIZE " << MAX_PACKET_SIZE << std::endl;
+    std::cout << "MAX_PAYLOAD_SIZE " << MAX_PAYLOAD_SIZE << std::endl;
     struct sockaddr_in addr;
 
     // init sockfd_
@@ -60,52 +62,86 @@ void Socket::open(uint16_t port)
 
 void Socket::close()
 {
-    std::cerr << "close start" << std::endl;
-
     kill(getpid(), SIGCLOSE);
     background_th_->join();
     ::close(sockfd_);
-
-    std::cerr << "close end" << std::endl;
 }
 
 void Socket::sendto(const void *data, size_t len, int dest_id)
 {
-    std::cerr << "send" << std::endl;
-    // msgを分割して，send_buff_に登録
-    // seqをインクリメント
     uint64_t idx;
+    uint32_t begin, end;
+    uint32_t payload_len, offset = 0;
+
+    printf("sendto(): data:%s, len:%ld, dest_id:%d\n", (char *)data, len, dest_id);
 
     sendbuf_mtx_.lock();
-    idx = sendbuf_.push((unsigned char *)data, len);
-    generated_seq_++;
-    sendbuf_info_.push(packet_info(idx, generated_seq_, len, dest_id));
+
+    begin = generated_seq_ + 1;
+    end = generated_seq_ + (len - 1) / (uint32_t)(MAX_PAYLOAD_SIZE) + 1;
+    for (int seq = begin; seq <= end; seq++)
+    {
+        payload_len = std::min(len - offset, MAX_PAYLOAD_SIZE);
+        idx = sendbuf_.push((unsigned char *)data + offset, payload_len);
+        sendbuf_info_.push(packet(idx, payload_len, seq, begin, end, -1, dest_id));
+        offset += payload_len;
+    }
+    generated_seq_ = end;
+
     sendbuf_mtx_.unlock();
 
     kill(getpid(), SIGSEND);
 }
 
-ssize_t Socket::recvfrom(void *data)
+ssize_t Socket::recvfrom(void *data) /* 只今バグり中 */
 {
-    std::cerr << "recv" << std::endl;
+    uint32_t next, begin, end, len = 0;
 
-    uint32_t len = 0;
-    for (;;)
+    while (true)
     {
+        // std::cout << 1 << std::endl;
+        recvbuf_mtx_.lock();
         if (!recvbuf_info_.empty())
         {
-            recvbuf_mtx_.lock();
-            const packet_info& packet = recvbuf_info_.top();
-            recvbuf_info_.pop();
-            len += packet.len_;
-            recvbuf_mtx_.unlock();
-            break;
+            const packet& p = recvbuf_info_.top();
+            std::cout << p.hdr_.begin << " " << p.hdr_.seq << std::endl;
+            if (len == 0 && p.hdr_.begin == p.hdr_.seq)
+            {
+                begin = p.hdr_.begin;
+                next = begin+1;
+                end = p.hdr_.end;
+                len += p.payload_len_;
+                recvbuf_info_.pop();
+                recvbuf_mtx_.unlock();
+                break;
+            }
         }
+        recvbuf_mtx_.unlock();
         std::this_thread::sleep_for(std::chrono::microseconds(1));
     }
+    while (next <= end)
+    {
+        recvbuf_mtx_.lock();
+        if (!recvbuf_info_.empty())
+        {
+            const packet& p = recvbuf_info_.top();
+            std::cout << p.hdr_.begin << " " << p.hdr_.seq << " " << next << std::endl;
+            if (p.hdr_.seq == next)
+            {
+                next++;
+                len += p.payload_len_;
+                recvbuf_info_.pop();
+            }
+        }
+        recvbuf_mtx_.unlock();
+        std::this_thread::sleep_for(std::chrono::microseconds(1));
+    }
+
+    // recv bufferから取得
     recvbuf_mtx_.lock();
     recvbuf_.pop((unsigned char *)data, len);
     recvbuf_mtx_.unlock();
+
     return len;
 }
 
@@ -114,16 +150,16 @@ void Socket::add_endpoint(int id, char *ipaddr, uint16_t port, bool is_same_grou
     endpoint_list_.insert(std::make_pair(id, endpoint(ipaddr, port, is_same_group)));
 }
 
-ssize_t Socket::output_packet(uint32_t seq, const void *payload, size_t len, int dest_id)
+ssize_t Socket::output_packet(uint32_t seq, uint32_t begin, uint32_t end, const void *payload, size_t len, int dest_id)
 {
-    std::cout << "output packet" << std::endl;
-
     unsigned char buf[MAX_PACKET_SIZE] = {};
     struct header *hdr;
     uint32_t total;
 
     hdr = (struct header *)buf;
     hdr->seq = seq;
+    hdr->begin = begin;
+    hdr->end = end;
     std::memcpy(hdr + 1, payload, len);
     total = sizeof(struct header) + len;
 
@@ -132,38 +168,40 @@ ssize_t Socket::output_packet(uint32_t seq, const void *payload, size_t len, int
     endpoint dest = endpoint_list_.at(dest_id);
     len = ::sendto(sockfd_, buf, total, 0, (struct sockaddr *)&(dest.addr_), sizeof(dest.addr_));
 
+    printf("output_packet(): len:%ld, seq:%d, begin:%d, end:%d, payload:%s dest:%d\n", len, seq, begin, end, (char *)payload, dest_id);
+
     return len; // -1の場合sendto()error
 }
 
-size_t Socket::input_packet(uint32_t *seq, void *payload)
+size_t Socket::input_packet(uint32_t *seq, uint32_t *begin, uint32_t *end, void *payload)
 {
-    std::cout << "input packet" << std::endl;
-
     unsigned char buf[MAX_PACKET_SIZE] = {};
-    ssize_t len, payload_len;
+    ssize_t buf_len, payload_len;
     struct header *hdr;
     struct sockaddr_in src;
     socklen_t srclen = sizeof(src);
 
-    len = ::recvfrom(sockfd_, buf, MAX_PACKET_SIZE, 0, (struct sockaddr *)&src, &srclen);
-    payload_len = len - sizeof(struct header);
+    buf_len = ::recvfrom(sockfd_, buf, MAX_PACKET_SIZE, 0, (struct sockaddr *)&src, &srclen);
+    payload_len = buf_len - sizeof(struct header);
     hdr = (struct header *)buf;
     *seq = hdr->seq;
+    *begin = hdr->begin;
+    *end = hdr->end;
     std::memcpy(payload, buf + sizeof(struct header), payload_len);
+
+    printf("input_packet(): len:%ld, seq:%d, begin:%d, end:%d, payload:%s\n", payload_len, *seq, *begin, *end, (char *)payload);
 
     return payload_len;
 }
 
 void *Socket::background()
 {
-    std::cerr << "background" << std::endl;
     struct epoll_event events[max_epoll_events];
     int epollfd, nfds;
     struct signalfd_siginfo fdsi;
     unsigned char payload[MAX_PAYLOAD_SIZE];
     ssize_t len;
     uint64_t idx;
-    uint32_t seq;
 
     epollfd = register_epoll_events();
 
@@ -180,12 +218,13 @@ void *Socket::background()
 /**************************** multicast algorithm ********************************/
             if (events[i].data.fd == sockfd_)
             {
-                len = input_packet(&seq, payload);
-                std::cout << len << " " << seq << " " << payload << std::endl;
+                struct header hdr;
+                std::memset(payload, '\0', MAX_PAYLOAD_SIZE);
+                len = input_packet(&hdr.seq, &hdr.begin, &hdr.end, payload);
 
                 recvbuf_mtx_.lock();
                 idx = recvbuf_.push(payload, len);
-                recvbuf_info_.push(packet_info(idx, seq, len, -1));
+                recvbuf_info_.push(packet(idx, len, hdr.seq, hdr.begin, hdr.end, -1, -1)); // src_id_を特定する
                 recvbuf_mtx_.unlock();
 
                 // if (packet.type == ACK)
@@ -214,20 +253,20 @@ void *Socket::background()
                     sendbuf_mtx_.lock();
                     while (!sendbuf_info_.empty())
                     {
-                        packet_info& pack = sendbuf_info_.front();
-                        sendbuf_.get(pack.idx_, payload, pack.len_);
-                        if (pack.dest_id_ == 0)
+                        std::memset(payload, '\0', MAX_PAYLOAD_SIZE);
+                        packet& p = sendbuf_info_.front();
+                        sendbuf_.get(p.idx_, payload, p.payload_len_);
+                        if (p.dest_id_ == 0) // 全ノードに送信
                         {
                             for (auto dest = endpoint_list_.begin(); dest != endpoint_list_.end(); ++dest)
                             {
-                                len = output_packet(pack.seq_, payload, pack.len_, dest->first);
+                                len = output_packet(p.hdr_.seq, p.hdr_.begin, p.hdr_.end, payload, p.payload_len_, dest->first);
                             }
                         }
-                        else
+                        else // 指定ノードに送信
                         {
-                            len = output_packet(pack.seq_, payload, pack.len_, pack.dest_id_);
+                            len = output_packet(p.hdr_.seq, p.hdr_.begin, p.hdr_.end, payload, p.payload_len_, p.dest_id_);
                         }
-                        std::cout << pack.len_ << " " << len << " " << pack.seq_ << " " << payload << std::endl;
                         sendbuf_info_.pop();
                     }
                     sendbuf_mtx_.unlock();

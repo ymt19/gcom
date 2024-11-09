@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
 
     for (;;) {
         sock.recvfrom(buf);
-        std::cout << buf << std::endl;
+        std::cout << "recvfrom: " << buf << std::endl;
     }
     sock.close();
 }
