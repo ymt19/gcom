@@ -12,16 +12,16 @@
 namespace multicast
 {
 
-#define FLG_NCK 0x01
+#define FLAG_NCK 0x01
 
 struct header
 {
     uint32_t seq;
-    uint32_t begin;
-    uint32_t end;
+    uint32_t head;
+    uint32_t tail;
     // uint32_t srcaddr;
     // uint16_t srcport;
-    uint8_t flg;
+    uint8_t flag;
 };
 
 #define MAX_PACKET_SIZE     40 //1472 // max udp payload size
@@ -57,25 +57,27 @@ private:
     class queue_entry
     {
     public:
-        uint64_t idx_;
-        uint32_t payload_len_;
-        struct header hdr_;
-        int src_id_;    // send bufの場合-1
-        int dest_id_;   // recv bufの場合-1
+        uint64_t idx;
+        uint32_t payload_len;
+        uint32_t seq;
+        uint32_t head;
+        uint32_t tail;
+        int src_id;    // send bufの場合-1
+        int dest_id;   // recv bufの場合-1
 
-        queue_entry(uint64_t idx, uint32_t payload_len, uint64_t seq, uint32_t begin, uint32_t end, int src_id, int dest_id)
+        queue_entry(uint64_t _idx, uint32_t _payload_len, uint64_t _seq, uint32_t _head, uint32_t _tail, int _src_id, int _dest_id)
         {
-            idx_ = idx;
-            payload_len_ = payload_len;
-            hdr_.seq = seq;
-            hdr_.begin = begin;
-            hdr_.end = end;
-            src_id_ = src_id;
-            dest_id_ = dest_id;
+            idx = _idx;
+            payload_len = _payload_len;
+            seq = _seq;
+            head = _head;
+            tail = _tail;
+            src_id = _src_id;
+            dest_id = _dest_id;
         }
 
-        bool operator< (const queue_entry& a) const { return idx_ < a.idx_; }
-        bool operator> (const queue_entry& a) const { return idx_ > a.idx_; }
+        bool operator< (const queue_entry& a) const { return idx < a.idx; }
+        bool operator> (const queue_entry& a) const { return idx > a.idx; }
     };
 
     ssize_t output_packet(uint32_t seq, uint32_t begin, uint32_t end, const void *payload, size_t len, int dest_id);
@@ -88,22 +90,22 @@ private:
 
     int register_epoll_events();
 
-    int sockfd_;
-    int signalfd_;
+    int sock_fd;
+    int signal_fd;
 
-    std::optional<std::thread> background_th_;
+    std::optional<std::thread> background_thread;
 
-    std::mutex sendbuf_mtx_;
-    uint64_t generated_seq_;
-    RingBuffer sendbuf_;
-    std::queue<queue_entry> sendbuf_info_;
+    std::mutex sendbuf_mtx;
+    uint64_t generated_seq;
+    RingBuffer sendbuf;
+    std::queue<queue_entry> sendbuf_info;
 
-    std::mutex recvbuf_mtx_;
-    RingBuffer recvbuf_;
-    std::priority_queue<queue_entry, std::vector<queue_entry>, std::greater<queue_entry>> recvbuf_info_;
+    std::mutex recvbuf_mtx;
+    RingBuffer recvbuf;
+    std::priority_queue<queue_entry, std::vector<queue_entry>, std::greater<queue_entry>> recvbuf_info;
 
 
-    std::map<int, endpoint> endpoint_list_; // id : endpoint info, id >= 1
+    std::map<int, endpoint> endpoint_list; // id : endpoint info, id >= 1
 };
 
 }
