@@ -48,6 +48,11 @@ public:
     {
         return idx_ < a.idx_;
     }
+
+    bool operator> (const packet& a) const
+    {
+        return idx_ > a.idx_;
+    }
 };
 
 class Socket
@@ -99,7 +104,7 @@ private:
 
     std::mutex recvbuf_mtx_;
     RingBuffer recvbuf_;
-    std::priority_queue<packet> recvbuf_info_;
+    std::priority_queue<packet, std::vector<packet>, std::greater<packet>> recvbuf_info_;
 
     std::map<int, endpoint> endpoint_list_; // id : endpoint info, id >= 1
 };
