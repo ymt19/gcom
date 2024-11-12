@@ -93,7 +93,7 @@ void Socket::sendto(const void *data, size_t len, int dest_id)
     kill(getpid(), SIGSEND);
 }
 
-ssize_t Socket::recvfrom(void *data) /* 只今バグり中 */
+ssize_t Socket::recvfrom(void *data)
 {
     uint32_t next, head, tail, len = 0;
 
