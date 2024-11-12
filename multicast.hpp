@@ -19,8 +19,6 @@ struct header
     uint32_t seq;
     uint32_t head;
     uint32_t tail;
-    // uint32_t srcaddr;
-    // uint16_t srcport;
     uint8_t flag;
 };
 
@@ -105,7 +103,7 @@ private:
     std::priority_queue<queue_entry, std::vector<queue_entry>, std::greater<queue_entry>> recvbuf_info;
 
 
-    std::map<int, endpoint> endpoint_list; // id : endpoint info, id >= 1
+    std::map<int, endpoint> endpoint_list;
 };
 
 }

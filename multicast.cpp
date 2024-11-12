@@ -99,7 +99,6 @@ ssize_t Socket::recvfrom(void *data) /* 只今バグり中 */
 
     while (true)
     {
-        // std::cout << 1 << std::endl;
         recvbuf_mtx.lock();
         if (!recvbuf_info.empty())
         {
@@ -163,8 +162,7 @@ ssize_t Socket::output_packet(uint32_t seq, uint32_t begin, uint32_t end, const 
     std::memcpy(hdr + 1, payload, len);
     total = sizeof(struct header) + len;
 
-    // 1. loop回したほうがいいのか？
-    // 2. std::map endpoint_list_の参照は参照ではなくていいのか？
+    // - std::map endpoint_list_の参照は参照ではなくていいのか？
     endpoint dest = endpoint_list.at(dest_id);
     len = ::sendto(sock_fd, buf, total, 0, (struct sockaddr *)&(dest.addr_), sizeof(dest.addr_));
 
