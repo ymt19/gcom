@@ -83,7 +83,7 @@ void Socket::sendto(const void *data, size_t len, int dest_id)
     {
         payload_len = std::min(len - offset, MAX_PAYLOAD_SIZE);
         idx = sendbuf_.push((unsigned char *)data + offset, payload_len);
-        sendbuf_info_.push(packet(idx, payload_len, seq, begin, end, -1, dest_id));
+        sendbuf_info_.push(queue_entry(idx, payload_len, seq, begin, end, -1, dest_id));
         offset += payload_len;
     }
     generated_seq_ = end;
@@ -103,14 +103,14 @@ ssize_t Socket::recvfrom(void *data) /* 只今バグり中 */
         recvbuf_mtx_.lock();
         if (!recvbuf_info_.empty())
         {
-            const packet& p = recvbuf_info_.top();
-            std::cout << p.hdr_.begin << " " << p.hdr_.seq << std::endl;
-            if (len == 0 && p.hdr_.begin == p.hdr_.seq)
+            const queue_entry& en = recvbuf_info_.top();
+            std::cout << en.hdr_.begin << " " << en.hdr_.seq << std::endl;
+            if (len == 0 && en.hdr_.begin == en.hdr_.seq)
             {
-                begin = p.hdr_.begin;
+                begin = en.hdr_.begin;
                 next = begin+1;
-                end = p.hdr_.end;
-                len += p.payload_len_;
+                end = en.hdr_.end;
+                len += en.payload_len_;
                 recvbuf_info_.pop();
                 recvbuf_mtx_.unlock();
                 break;
@@ -124,12 +124,12 @@ ssize_t Socket::recvfrom(void *data) /* 只今バグり中 */
         recvbuf_mtx_.lock();
         if (!recvbuf_info_.empty())
         {
-            const packet& p = recvbuf_info_.top();
-            std::cout << p.hdr_.begin << " " << p.hdr_.seq << " " << next << std::endl;
-            if (p.hdr_.seq == next)
+            const queue_entry& en = recvbuf_info_.top();
+            std::cout << en.hdr_.begin << " " << en.hdr_.seq << " " << next << std::endl;
+            if (en.hdr_.seq == next)
             {
                 next++;
-                len += p.payload_len_;
+                len += en.payload_len_;
                 recvbuf_info_.pop();
             }
         }
@@ -222,17 +222,17 @@ void *Socket::background()
                 std::memset(payload, '\0', MAX_PAYLOAD_SIZE);
                 len = input_packet(&hdr.seq, &hdr.begin, &hdr.end, payload);
 
-                recvbuf_mtx_.lock();
-                idx = recvbuf_.push(payload, len);
-                recvbuf_info_.push(packet(idx, len, hdr.seq, hdr.begin, hdr.end, -1, -1)); // src_id_を特定する
-                recvbuf_mtx_.unlock();
-
                 // if (packet.type == NCK)
                 // {
                 // }
                 // else if (packet.type == DAT)
                 // {
                 // }
+
+                recvbuf_mtx_.lock();
+                idx = recvbuf_.push(payload, len);
+                recvbuf_info_.push(queue_entry(idx, len, hdr.seq, hdr.begin, hdr.end, -1, -1)); // src_id_を特定する
+                recvbuf_mtx_.unlock();
             }
             else if (events[i].data.fd == signalfd_)
             {
@@ -251,18 +251,18 @@ void *Socket::background()
                     while (!sendbuf_info_.empty())
                     {
                         std::memset(payload, '\0', MAX_PAYLOAD_SIZE);
-                        packet& p = sendbuf_info_.front();
-                        sendbuf_.get(p.idx_, payload, p.payload_len_);
-                        if (p.dest_id_ == 0) // 全ノードに送信
+                        queue_entry& en = sendbuf_info_.front();
+                        sendbuf_.get(en.idx_, payload, en.payload_len_);
+                        if (en.dest_id_ == 0) // 全ノードに送信
                         {
                             for (auto dest = endpoint_list_.begin(); dest != endpoint_list_.end(); ++dest)
                             {
-                                len = output_packet(p.hdr_.seq, p.hdr_.begin, p.hdr_.end, payload, p.payload_len_, dest->first);
+                                len = output_packet(en.hdr_.seq, en.hdr_.begin, en.hdr_.end, payload, en.payload_len_, dest->first);
                             }
                         }
                         else // 指定ノードに送信
                         {
-                            len = output_packet(p.hdr_.seq, p.hdr_.begin, p.hdr_.end, payload, p.payload_len_, p.dest_id_);
+                            len = output_packet(en.hdr_.seq, en.hdr_.begin, en.hdr_.end, payload, en.payload_len_, en.dest_id_);
                         }
                         sendbuf_info_.pop();
                     }
