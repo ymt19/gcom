@@ -13,7 +13,7 @@
 namespace multicast
 {
 
-Socket::Socket()
+Socket::Socket() 
 {
     sockfd_ = -1;
     signalfd_ = -1;
@@ -227,13 +227,10 @@ void *Socket::background()
                 recvbuf_info_.push(packet(idx, len, hdr.seq, hdr.begin, hdr.end, -1, -1)); // src_id_を特定する
                 recvbuf_mtx_.unlock();
 
-                // if (packet.type == ACK)
+                // if (packet.type == NCK)
                 // {
                 // }
-                // else if (packet.type == NACK)
-                // {
-                // }
-                // else if (packet.type == DATA)
+                // else if (packet.type == DAT)
                 // {
                 // }
             }

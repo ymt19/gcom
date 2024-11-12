@@ -12,6 +12,8 @@
 namespace multicast
 {
 
+#define FLG_NCK 0x01
+
 struct header
 {
     uint32_t seq;
@@ -19,6 +21,7 @@ struct header
     uint32_t end;
     // uint32_t srcaddr;
     // uint16_t srcport;
+    uint8_t flg;
 };
 
 #define MAX_PACKET_SIZE     40 //1472 // max udp payload size
