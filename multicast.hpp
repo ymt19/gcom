@@ -78,9 +78,11 @@ private:
         bool operator> (const queue_entry& a) const { return idx > a.idx; }
     };
 
-    ssize_t output_packet(uint32_t seq, uint32_t begin, uint32_t end, const void *payload, size_t len, int dest_id);
+    ssize_t output_packet(uint32_t seq, uint32_t begin, uint32_t end, uint8_t flag, const void *payload, size_t len, int dest_id);
 
-    size_t input_packet(uint32_t *seq, uint32_t *begin, uint32_t *end, void *payload);
+    size_t input_packet(uint32_t *seq, uint32_t *begin, uint32_t *end, uint8_t *flag, void *payload);
+
+    void output_all();
 
     void* background();
 

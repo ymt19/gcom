@@ -149,7 +149,7 @@ void Socket::add_endpoint(int id, char *ipaddr, uint16_t port, bool is_same_grou
     endpoint_list.insert(std::make_pair(id, endpoint(ipaddr, port, is_same_group)));
 }
 
-ssize_t Socket::output_packet(uint32_t seq, uint32_t begin, uint32_t end, const void *payload, size_t len, int dest_id)
+ssize_t Socket::output_packet(uint32_t seq, uint32_t begin, uint32_t end, uint8_t flag, const void *payload, size_t len, int dest_id)
 {
     unsigned char buf[MAX_PACKET_SIZE] = {};
     struct header *hdr;
@@ -159,6 +159,7 @@ ssize_t Socket::output_packet(uint32_t seq, uint32_t begin, uint32_t end, const 
     hdr->seq = seq;
     hdr->head = begin;
     hdr->tail = end;
+    hdr->flag = flag;
     std::memcpy(hdr + 1, payload, len);
     total = sizeof(struct header) + len;
 
@@ -171,7 +172,7 @@ ssize_t Socket::output_packet(uint32_t seq, uint32_t begin, uint32_t end, const 
     return len; // -1の場合sendto()error
 }
 
-size_t Socket::input_packet(uint32_t *seq, uint32_t *begin, uint32_t *end, void *payload)
+size_t Socket::input_packet(uint32_t *seq, uint32_t *begin, uint32_t *end, uint8_t *flag, void *payload)
 {
     unsigned char buf[MAX_PACKET_SIZE] = {};
     ssize_t buf_len, payload_len;
@@ -185,11 +186,43 @@ size_t Socket::input_packet(uint32_t *seq, uint32_t *begin, uint32_t *end, void 
     *seq = hdr->seq;
     *begin = hdr->head;
     *end = hdr->tail;
+    *flag = hdr->flag;
     std::memcpy(payload, buf + sizeof(struct header), payload_len);
 
     printf("input_packet(): len:%ld, seq:%d, begin:%d, end:%d, payload:%s\n", payload_len, *seq, *begin, *end, (char *)payload);
 
     return payload_len;
+}
+
+void Socket::output_all()
+{
+    unsigned char payload[MAX_PAYLOAD_SIZE];
+    ssize_t len;
+    uint8_t flag = 0x00;
+
+    sendbuf_mtx.lock();
+    while (!sendbuf_info.empty())
+    {
+        std::memset(payload, '\0', MAX_PAYLOAD_SIZE);
+        queue_entry& en = sendbuf_info.front();
+        sendbuf.get(en.idx, payload, en.payload_len);
+        if (en.dest_id == 0) // 全ノードに送信
+        {
+            for (auto dest = endpoint_list.begin(); dest != endpoint_list.end(); ++dest)
+            {
+                len = output_packet(en.seq, en.head, en.tail, flag, payload, en.payload_len, dest->first);
+            }
+        }
+        else // 指定ノードに送信
+        {
+            len = output_packet(en.seq, en.head, en.tail, flag, payload, en.payload_len, en.dest_id);
+
+            std::memset(payload, '\0', MAX_PAYLOAD_SIZE);
+            len = output_packet(0, 0, 0, FLAG_NCK, payload, 0, en.dest_id);
+        }
+        sendbuf_info.pop();
+    }
+    sendbuf_mtx.unlock();
 }
 
 void *Socket::background()
@@ -199,7 +232,6 @@ void *Socket::background()
     struct signalfd_siginfo fdsi;
     unsigned char payload[MAX_PAYLOAD_SIZE];
     ssize_t len;
-    uint64_t idx;
 
     epollfd = register_epoll_events();
 
@@ -217,20 +249,22 @@ void *Socket::background()
             if (events[i].data.fd == sock_fd)
             {
                 struct header hdr;
+                uint64_t idx;
+
                 std::memset(payload, '\0', MAX_PAYLOAD_SIZE);
-                len = input_packet(&hdr.seq, &hdr.head, &hdr.tail, payload);
+                len = input_packet(&hdr.seq, &hdr.head, &hdr.tail, &hdr.flag, payload);
 
-                // if (packet.type == NCK)
-                // {
-                // }
-                // else if (packet.type == DAT)
-                // {
-                // }
-
-                recvbuf_mtx.lock();
-                idx = recvbuf.push(payload, len);
-                recvbuf_info.push(queue_entry(idx, len, hdr.seq, hdr.head, hdr.tail, -1, -1)); // src_id_を特定する
-                recvbuf_mtx.unlock();
+                if (hdr.flag & FLAG_NCK)
+                {
+                    std::cout << "recv nack" << std::endl;
+                }
+                else
+                {
+                    recvbuf_mtx.lock();
+                    idx = recvbuf.push(payload, len);
+                    recvbuf_info.push(queue_entry(idx, len, hdr.seq, hdr.head, hdr.tail, -1, -1)); // src_id_を特定する
+                    recvbuf_mtx.unlock();
+                }
             }
             else if (events[i].data.fd == signal_fd)
             {
@@ -244,27 +278,7 @@ void *Socket::background()
                 if (fdsi.ssi_signo == SIGSEND)
                 {
                     std::cerr << "SIGSEND" << std::endl;
-
-                    sendbuf_mtx.lock();
-                    while (!sendbuf_info.empty())
-                    {
-                        std::memset(payload, '\0', MAX_PAYLOAD_SIZE);
-                        queue_entry& en = sendbuf_info.front();
-                        sendbuf.get(en.idx, payload, en.payload_len);
-                        if (en.dest_id == 0) // 全ノードに送信
-                        {
-                            for (auto dest = endpoint_list.begin(); dest != endpoint_list.end(); ++dest)
-                            {
-                                len = output_packet(en.seq, en.head, en.tail, payload, en.payload_len, dest->first);
-                            }
-                        }
-                        else // 指定ノードに送信
-                        {
-                            len = output_packet(en.seq, en.head, en.tail, payload, en.payload_len, en.dest_id);
-                        }
-                        sendbuf_info.pop();
-                    }
-                    sendbuf_mtx.unlock();
+                    output_all();
                     continue;
                 }
                 else if (fdsi.ssi_signo == SIGCLOSE)
