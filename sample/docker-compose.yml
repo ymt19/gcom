@@ -1,0 +1,24 @@
+version: '3'
+services:
+  sender:
+    image: sample
+    networks:
+      intra_net:
+        ipv4_address: 192.168.0.11
+    depends_on:
+      - receiver
+    tty: true
+
+  receiver:
+    image: sample
+    networks:
+      intra_net:
+        ipv4_address: 192.168.0.12
+    tty: true
+
+networks:
+  intra_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.0.0/24
