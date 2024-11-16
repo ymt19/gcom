@@ -25,13 +25,12 @@ with open(args[1]) as f:
 dt_now = datetime.datetime.now()
 dt_str = dt_now.strftime('%y%m%d-%H%M%S')
 
-# 設定値の計算
+# パラメータ設定
 mnt_dir = "/usr/src/sample/"
-working_dir = '{}{}-{}%-{}ms'.format(mnt_dir, dt_str, data['network']['loss_rate'], data['network']['delay']) # mnt_dir/20241116-000000-0%-0ms
+working_dir = 'sample-{}{}-{}%-{}ms'.format(mnt_dir, dt_str, data['network']['loss_rate'], data['network']['delay']) # mnt_dir/sample-YYMMDD-hhmmss-0%-0ms
 volumes = ".:{}".format(mnt_dir)
 subnet = "192.168.0.0/24"
 port = 10000
-
 sender = {'name': 'sender', 'ipaddr': subnet.replace('0/24', str(10 + 1)), 'port': port}
 receivers = []
 for i in range(data['application']['replicas']):
