@@ -1,14 +1,3 @@
-# 引数 config.yml
-## ロス率，遅延
-## サブネット <= こちらで設定
-## senderのIPアドレス, ポート <= こちらで設定
-## receiverの数 <= こちらで設定
-## reciever1 ipaddr port <= こちらで設定
-## reciever2 ipaddr port <= こちらで設定
-## .....
-## command ./sender
-## command ./receiver
-
 # docker-composeコード生成
 from jinja2 import Template
 from yaml import safe_load
