@@ -54,7 +54,7 @@ services:
         cap_add:
             - NET_ADMIN
         depends_on:
-            - {{receiver}}
+            - {% for receiver in receivers %}{{receiver['name']}} {% endfor %}
 
     {% for receiver in receivers %}
     {{receiver['name']}}
