@@ -57,7 +57,7 @@ services:
             - {% for receiver in receivers %}{{receiver['name']}} {% endfor %}
 
     {% for receiver in receivers %}
-    {{receiver['name']}}
+    {{receiver['name']}}:
         image: sample
         working_dir: {{working_dir}}
         volumes:
