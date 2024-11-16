@@ -1,7 +1,7 @@
 # 引数 config.yml
 ## ロス率，遅延
 ## サブネット <= こちらで設定
-## senderのIPアドレス　ポート <= こちらで設定
+## senderのIPアドレス, ポート <= こちらで設定
 ## receiverの数 <= こちらで設定
 ## reciever1 ipaddr port <= こちらで設定
 ## reciever2 ipaddr port <= こちらで設定
