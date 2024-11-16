@@ -54,10 +54,12 @@ services:
         cap_add:
             - NET_ADMIN
         depends_on:
-            - {% for receiver in receivers %}{{receiver['name']}} {% endfor %}
+            {%- for receiver in receivers %}
+            - {{receiver['name']}}
+            {%- endfor %}
         tty: true
 
-    {% for receiver in receivers %}
+    {%- for receiver in receivers %}
     {{receiver['name']}}:
         image: sample
         working_dir: {{working_dir}}
