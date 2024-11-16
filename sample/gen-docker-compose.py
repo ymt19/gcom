@@ -75,7 +75,7 @@ networks:
     intra_net:
         ipam:
             driver: default
-            confg:
+            config:
                 - subnet: {{subnet}}
 ''')
 
