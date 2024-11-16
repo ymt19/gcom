@@ -55,6 +55,7 @@ services:
             - NET_ADMIN
         depends_on:
             - {% for receiver in receivers %}{{receiver['name']}} {% endfor %}
+        tty: true
 
     {% for receiver in receivers %}
     {{receiver['name']}}:
@@ -67,6 +68,7 @@ services:
                 ipv4_address: {{receiver['ipaddr']}}
         cap_add:
             - NET_ADMIN
+        tty: true
     {% endfor %}
 
 networks:
