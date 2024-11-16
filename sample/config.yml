@@ -1,5 +1,5 @@
 application:
-  replicas: 3
+  receivers: 3
 network:
   loss_rate: 5 # [%]
   delay: 10 # [ms]

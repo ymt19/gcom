@@ -5,7 +5,8 @@
 #define SRC_ADDR "127.0.0.1"
 #define SRC_PORT 10000
 
-// ポート番号 実行時間 ngnode1アドレス ngnode1ポート番号 ngnode2アドレス ngnode2ポート番号
+// ./receiver port
+// sampleは全てのreceiverでグループ形成
 
 int main(int argc, char *argv[]) {
     char buf[256];

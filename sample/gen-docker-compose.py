@@ -33,7 +33,7 @@ subnet = "192.168.0.0/24"
 port = 10000
 sender = {'name': 'sender', 'ipaddr': subnet.replace('0/24', str(10 + 1)), 'port': port}
 receivers = []
-for i in range(data['application']['replicas']):
+for i in range(data['application']['receivers']):
     receivers.insert(i, {})
     receivers[i]['name'] = 'receiver{}'.format(i)
     receivers[i]['ipaddr'] = subnet.replace("0/24", str(20 + i))
@@ -56,7 +56,7 @@ services:
             {%- for receiver in receivers %}
             - {{receiver['name']}}
             {%- endfor %}
-        tty: true
+        command: bash -c "./sender {{sender['port']}} {{receivers | length}} {% for receiver in receivers %} {{receiver['ipaddr']}} {{receiver['port']}}{%- endfor -%}"
 
     {%- for receiver in receivers %}
     {{receiver['name']}}:
@@ -69,7 +69,7 @@ services:
                 ipv4_address: {{receiver['ipaddr']}}
         cap_add:
             - NET_ADMIN
-        tty: true
+        command: bash -c "./receiver {{reciever['port']}}"
     {% endfor %}
 
 networks:

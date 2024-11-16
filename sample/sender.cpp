@@ -9,7 +9,7 @@
 #define DEST2_ADDR "127.0.0.1"
 #define DEST2_PORT 10002
 
-// ポート番号 実行時間 reciever1アドレス receiver1ポート番号 receiver2アドレス receiver2ポート番号
+// ./sender [port] [receivers] [reciever1_ipaddr] [receiver1_port] [receiver2_ipaddr] [receiver2_port] ...
 
 int main(int argc, char *argv[]) {
     char buf[256];
