@@ -1,10 +1,5 @@
 .vscode/
 *.out
 bin/
-*.o
-*.gch
-*.bin
-*.log
-*.csv
-*.conf
 build/
+log*/
