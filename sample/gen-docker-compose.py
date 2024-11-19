@@ -14,12 +14,13 @@ with open(args[1]) as f:
 dt_now = datetime.datetime.now()
 dt_str = dt_now.strftime('%y%m%d-%H%M%S')
 
-# パラメータ設定
+# 設定値の計算
 mnt_dir = "/usr/src/sample/"
-working_dir = 'log-sample-{}{}-{}%-{}ms'.format(mnt_dir, dt_str, data['network']['loss_rate'], data['network']['delay']) # mnt_dir/log-sample-YYMMDD-hhmmss-0%-0ms
+working_dir = '{}{}-{}%-{}ms'.format(mnt_dir, dt_str, data['network']['loss'], data['network']['delay']) # mnt_dir/20241116-000000-0%-0ms
 volumes = ".:{}".format(mnt_dir)
 subnet = "192.168.0.0/24"
 port = 10000
+
 sender = {'name': 'sender', 'ipaddr': subnet.replace('0/24', str(10 + 1)), 'port': port}
 receivers = []
 for i in range(data['application']['receivers']):
@@ -27,6 +28,8 @@ for i in range(data['application']['receivers']):
     receivers[i]['name'] = 'receiver{}'.format(i)
     receivers[i]['ipaddr'] = subnet.replace("0/24", str(20 + i))
     receivers[i]['port'] = port
+
+env = {'loss': data['network']['loss'], 'delay': data['network']['delay']}
 
 template = Template('''
 version: \'3\'
@@ -45,7 +48,8 @@ services:
             {%- for receiver in receivers %}
             - {{receiver['name']}}
             {%- endfor %}
-        command: bash -c "./sender {{sender['port']}} {{receivers | length}} {% for receiver in receivers %} {{receiver['ipaddr']}} {{receiver['port']}}{%- endfor -%}"
+        command: bash -c "./tc.sh {{env['loss']}} {{env['delay']}} 
+                    && ../build/sender {{sender['port']}}{% for receiver in receivers %} {{receiver['ipaddr']}} {{receiver['port']}}{% endfor %}"
 
     {%- for receiver in receivers %}
     {{receiver['name']}}:
@@ -58,7 +62,8 @@ services:
                 ipv4_address: {{receiver['ipaddr']}}
         cap_add:
             - NET_ADMIN
-        command: bash -c "./receiver {{reciever['port']}}"
+        command: bash -c "./tc.sh {{env['loss']}} {{env['delay']}} 
+                    && ../build/receiver {{receiver['port']}}{% for gn in receivers %}{% if gn['ipaddr'] != receiver['ipaddr'] %} {{gn['ipaddr']}} {{gn['port']}}{% endif %}{% endfor %}"
     {% endfor %}
 
 networks:
@@ -69,5 +74,5 @@ networks:
                 - subnet: {{subnet}}
 ''')
 
-output = template.render(working_dir=working_dir, volumes=volumes, sender=sender, receivers=receivers, subnet=subnet)
+output = template.render(working_dir=working_dir, volumes=volumes, sender=sender, receivers=receivers, subnet=subnet, env=env)
 print(output)
