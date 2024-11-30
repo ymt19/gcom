@@ -1,23 +1,43 @@
 #include "background.hpp"
 #include <iostream>
+#include <vector>
+#include <thread>
 
-background::background(std::queue<transaction> *_requests)
+background::background(configuration* _config, std::queue<transaction> *_requests)
 {
+    config = _config;
     requests = _requests;
-    std::cout << "run" << std::endl;
 }
 
-background::~background()
+void background::run()
 {
+    // start
 
-}
+    if (config->id == 1) // master
+    {
+        std::vector<std::thread> threads;
+        for (int id = 1; id <= config->slaves; id++)
+        {
+            threads.emplace_back(std::thread(client, id));
+        }
 
-void background::run(configuration& config)
-{
+        // wait duration
     
+        for (auto& thread : threads)
+        {
+            thread.join();
+        }
+    }
+    else // slaves
+    {
+        // queueから取り出す
+        // logに書き込む
+    }
 }
 
-void background::client()
+void background::client(int id)
 {
-
+    // tx生成
+    // queueに入れる
+    // logに書き込む
 }

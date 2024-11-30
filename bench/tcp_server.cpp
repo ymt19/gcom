@@ -19,4 +19,5 @@ int main(int argc, char *argv[]) {
 
     // run client thread
     background bg();
+    bg.run();
 }

@@ -7,11 +7,11 @@
 class background
 {
 public:
-    background(std::queue<transaction> *_requests);
-    ~background();
-    void run(configuration& config);
+    background(configuration* _config, std::queue<transaction> *_requests);
+    void run();
 private:
+    configuration *config;
     std::queue<transaction> *requests;
 
-    void client();
+    void client(int id);
 };
