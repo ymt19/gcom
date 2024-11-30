@@ -1,19 +1,23 @@
 #pragma once
 
-struct configuration
+#define BUFFSIZE BUFSIZ
+
+class configuration
 {
+public:
     int id;
     char ipaddr[32];
     int port;
-    int duration; // sec
+    int duration = 0; // sec
 
     // master
-    int iops; // ops/sec
-    int threads;
-    int log_size; // bytes
-    int slaves;
-    char slave_ipadder[10][32];
+    int iops = 0; // ops/sec
+    int threads = 0;
+    int log_size = 0; // bytes
+    int slaves = 0; // slaves <= 9
+    char slave_ipadder[32][10];
     int slave_port[10];
-};
 
-void print_configration(struct configuration *config);
+    configuration(char *argv[]);
+    void print();
+};
