@@ -18,6 +18,6 @@ int main(int argc, char *argv[]) {
     tcm.run();
 
     // run client thread
-    background bg();
+    background bg(&config, &requests);
     bg.run();
 }

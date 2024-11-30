@@ -7,7 +7,7 @@ project(bench CXX)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-add_executable(tcp_server tcp_server.cpp tcp_connection_manager.cpp configuration.cpp transaction.cpp)
+add_executable(tcp_server tcp_server.cpp tcp_connection_manager.cpp configuration.cpp transaction.cpp background.cpp)
 target_link_libraries(tcp_server
     Threads::Threads
 )
