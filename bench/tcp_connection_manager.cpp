@@ -10,6 +10,8 @@
 #include <netinet/in.h>
 #include <iostream>
 #include <thread>
+#include <sstream>
+#include <cereal/archives/binary.hpp>
 
 tcp_connection_manager::tcp_connection_manager(configuration *_config, struct requests *_reqs)
 {
@@ -72,15 +74,24 @@ void tcp_connection_manager::sender()
     int len;
 
     int seq = 1;
+    std::stringstream ss;
     while (1)
     {
         reqs->mtx.lock();
         if (!reqs->data.empty())
-        {
-            reqs->data.front().print();
+        {           
+		    cereal::BinaryOutputArchive oarchive(ss);
+		    oarchive(reqs->data.front());
             reqs->data.pop();
         }
         reqs->mtx.unlock();
+
+        transaction tx;
+        {
+            cereal::BinaryInputArchive iarchive(ss); // Create an input archive
+            iarchive(tx);
+        }
+        tx.print();
 
         // sprintf(buff, "from%d:seq%d", config->id, seq);
         // seq++;
@@ -157,6 +168,11 @@ void tcp_connection_manager::receiver()
         std::cout << buff << std::endl;
         sprintf(buff, "ackfrom%d", config->id);
         ret = send(connect_fd[0], buff, strlen(buff), 0);
+
+        // 受信
+        // ssに入れる
+        // ssからcerealを経由してtransactionを生成
+        // transactionをreqsに入れる
     }
     /******************************************************/
 

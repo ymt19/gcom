@@ -6,6 +6,7 @@
 class transaction
 {
 public:
+    transaction();
     transaction(int id, int client, int size) : id(id), client(client), size(size) {}
 
     template<class Archive>
