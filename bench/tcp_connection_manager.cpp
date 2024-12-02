@@ -11,14 +11,18 @@
 #include <iostream>
 #include <thread>
 
-tcp_connection_manager::tcp_connection_manager(configuration *_config, std::queue<transaction> *_requests)
+tcp_connection_manager::tcp_connection_manager(configuration *_config, struct requests *_reqs)
 {
     config = _config;
-    requests = _requests;
+    reqs = _reqs;
 }
 
 tcp_connection_manager::~tcp_connection_manager()
 {
+    // workerを終了させる
+    // atomic variable flag set
+
+    // join
     if (worker.joinable())
     {
         worker.join();
@@ -70,20 +74,27 @@ void tcp_connection_manager::sender()
     int seq = 1;
     while (1)
     {
-        sleep(1);
-        sprintf(buff, "from%d:seq%d", config->id, seq);
-        seq++;
-        for (int slave = 0; slave < config->slaves; slave++)
+        reqs->mtx.lock();
+        if (!reqs->data.empty())
         {
-            ret = send(connect_fd[slave], buff, strlen(buff), 0);
+            reqs->data.front().print();
+            reqs->data.pop();
         }
+        reqs->mtx.unlock();
 
-        for (int slave = 0; slave < config->slaves; slave++)
-        {
-            len = recv(connect_fd[slave], buff, BUFFSIZE, 0);
-            buff[len] = '\0';
-            std::cout << buff << std::endl;
-        }
+        // sprintf(buff, "from%d:seq%d", config->id, seq);
+        // seq++;
+        // for (int slave = 0; slave < config->slaves; slave++)
+        // {
+        //     ret = send(connect_fd[slave], buff, strlen(buff), 0);
+        // }
+
+        // for (int slave = 0; slave < config->slaves; slave++)
+        // {
+        //     len = recv(connect_fd[slave], buff, BUFFSIZE, 0);
+        //     buff[len] = '\0';
+        //     std::cout << buff << std::endl;
+        // }
     }
     /*****************************************************/
     

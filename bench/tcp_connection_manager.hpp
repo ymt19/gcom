@@ -8,12 +8,12 @@
 class tcp_connection_manager
 {
 public:
-    tcp_connection_manager(configuration *_config, std::queue<transaction> *_requests);
+    tcp_connection_manager(configuration *_config, struct requests *_reqs);
     ~tcp_connection_manager();
     void run();
 private:
     configuration *config;
-    std::queue<transaction> *requests;
+    struct requests *reqs;
 
     std::thread worker;
     int connect_fd[10];

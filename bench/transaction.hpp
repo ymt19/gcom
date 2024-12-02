@@ -1,18 +1,32 @@
 #pragma once
 
+#include <queue>
+#include <mutex>
+
 class transaction
 {
 public:
     transaction(int id, int client, int size) : id(id), client(client), size(size) {}
 
     template<class Archive>
-    void serialize(Archive &ar, unsigned int /* version */) 
+    void serialize(Archive & archive)
     {
-        
+        archive(id, client, size);
+    }
+
+    void print()
+    {
+        printf("tx id:%d client:%d size:%d\n", id, client, size);
     }
 
 private:
     int id;
     int client;
     int size;
+};
+
+struct requests
+{
+    std::queue<transaction> data;
+    std::mutex mtx;
 };
