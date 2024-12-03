@@ -73,39 +73,36 @@ void tcp_connection_manager::sender()
     char buff[BUFFSIZE];
     int len;
 
-    int seq = 1;
-    std::stringstream ss;
+    // atomic variable flag
     while (1)
     {
-        reqs->mtx.lock();
+        reqs->mtx.lock(); /** lock **/
         if (!reqs->data.empty())
-        {           
-		    cereal::BinaryOutputArchive oarchive(ss);
-		    oarchive(reqs->data.front());
-            reqs->data.pop();
-        }
-        reqs->mtx.unlock();
-
-        transaction tx;
         {
-            cereal::BinaryInputArchive iarchive(ss); // Create an input archive
-            iarchive(tx);
+            std::stringstream ss;
+            {
+                cereal::BinaryOutputArchive oarchive(ss);
+                oarchive(reqs->data.front());
+            }
+            reqs->data.pop();
+            reqs->mtx.unlock(); /** unlock **/
+
+            len = ss.str().size();
+            memcpy(buff, ss.str().c_str(), len);
+
+            for (int slave = 0; slave < config->slaves; slave++)
+            {
+                ret = send(connect_fd[slave], buff, len, 0);
+            }
+
+            for (int slave = 0; slave < config->slaves; slave++)
+            {
+                len = recv(connect_fd[slave], buff, BUFFSIZE, 0);
+                buff[len] = '\0';
+                std::cout << buff << std::endl;
+            }
         }
-        tx.print();
-
-        // sprintf(buff, "from%d:seq%d", config->id, seq);
-        // seq++;
-        // for (int slave = 0; slave < config->slaves; slave++)
-        // {
-        //     ret = send(connect_fd[slave], buff, strlen(buff), 0);
-        // }
-
-        // for (int slave = 0; slave < config->slaves; slave++)
-        // {
-        //     len = recv(connect_fd[slave], buff, BUFFSIZE, 0);
-        //     buff[len] = '\0';
-        //     std::cout << buff << std::endl;
-        // }
+        reqs->mtx.unlock(); /** unlock **/
     }
     /*****************************************************/
     
@@ -160,19 +157,25 @@ void tcp_connection_manager::receiver()
     /****************** Recieverプロトコル ******************/
     char buff[BUFFSIZE];
     int len;
+    transaction tx;
 
+    // atomic variable flag
     while (1)
     {
         len = recv(connect_fd[0], buff, BUFFSIZE, 0);
-        buff[len] = '\0';
-        std::cout << buff << std::endl;
-        sprintf(buff, "ackfrom%d", config->id);
-        ret = send(connect_fd[0], buff, strlen(buff), 0);
+        printf("recv:%d\n", len);
 
-        // 受信
-        // ssに入れる
-        // ssからcerealを経由してtransactionを生成
-        // transactionをreqsに入れる
+        std::stringstream ss;
+        ss.write(buff, len);
+        cereal::BinaryInputArchive iarchive(ss);
+        iarchive(tx);
+
+        // requestsに入れる
+        tx.print();
+
+        // 返答
+        sprintf(buff, "ackfrom%d", tx.id);
+        ret = send(connect_fd[0], buff, strlen(buff), 0);
     }
     /******************************************************/
 

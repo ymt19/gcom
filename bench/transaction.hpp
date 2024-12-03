@@ -6,7 +6,7 @@
 class transaction
 {
 public:
-    transaction();
+    transaction() {}
     transaction(int id, int client, int size) : id(id), client(client), size(size) {}
 
     template<class Archive>
@@ -20,7 +20,6 @@ public:
         printf("tx id:%d client:%d size:%d\n", id, client, size);
     }
 
-private:
     int id;
     int client;
     int size;

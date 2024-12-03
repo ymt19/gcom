@@ -45,16 +45,14 @@ void background::run()
 
 void background::client(int id)
 {
-    // 1. tx生成
-    // 2. queueに挿入
-    // 3. logに書き込む
-    int txid;
+    int txid = 0;
     int client = id;
     int size = 0;
     for (int i = 0; i < 10; i++)
     {
+        // op/sec
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        txid = i;
+        txid++;
 
         reqs->mtx.lock();
         reqs->data.push(transaction(txid, client, size));
