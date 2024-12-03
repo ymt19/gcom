@@ -16,11 +16,12 @@ int main(int argc, char *argv[]) {
     config.print();
 
     // logger生成
-    std::string logfilename = "log" + config.id;
-    logger lg(logfilename);
+    char logfilename[20];
+    snprintf(logfilename, 20, "log%d", config.id);
+    logger lg(std::string{logfilename});
 
     // run connection manager
-    tcp_connection_manager tcm(config, requests);
+    tcp_connection_manager tcm(config, requests, lg);
 
     // run client thread
     background bg(config, requests);

@@ -13,7 +13,8 @@
 #include <sstream>
 #include <cereal/archives/binary.hpp>
 
-tcp_connection_manager::tcp_connection_manager(configuration& _config, txqueue& _requests) : config(_config), requests(_requests)
+tcp_connection_manager::tcp_connection_manager(configuration& config, txqueue& requests, logger& lg) 
+    : config(config), requests(requests), lg(lg)
 {
     std::cout << "run" << std::endl;
 
@@ -87,11 +88,13 @@ void tcp_connection_manager::sender()
             for (int slave = 0; slave < config.slaves; slave++)
             {
                 ret = send(connect_fd[slave], buff, len, 0);
+                // lg.send_message(ret, std::string(config.slave_ipadder[slave]), config.slave_port[slave]);
             }
 
             for (int slave = 0; slave < config.slaves; slave++)
             {
                 len = recv(connect_fd[slave], buff, BUFFSIZE, 0);
+                // lg.recv_message(len, std::string(config.slave_ipadder[slave]), config.slave_port[slave]);
                 buff[len] = '\0';
                 std::cout << buff << std::endl;
             }
@@ -151,14 +154,15 @@ void tcp_connection_manager::receiver()
     /****************** Recieverプロトコル ******************/
     char buff[BUFFSIZE];
     int len;
-    transaction tx;
 
     // atomic variable flag
     while (1)
     {
         len = recv(connect_fd[0], buff, BUFFSIZE, 0);
+        // lg.recv_message();
         printf("recv:%d\n", len);
 
+        transaction tx;
         std::stringstream ss;
         ss.write(buff, len);
         cereal::BinaryInputArchive iarchive(ss);
@@ -166,10 +170,14 @@ void tcp_connection_manager::receiver()
 
         // requestsに入れる
         tx.print();
+        requests.mtx.lock();
+        requests.data.push(tx);
+        requests.mtx.unlock();
 
         // 返答
         sprintf(buff, "ackfrom%d", tx.id);
         ret = send(connect_fd[0], buff, strlen(buff), 0);
+        // lg.send_message();
     }
     /******************************************************/
 

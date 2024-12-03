@@ -50,13 +50,22 @@ void background::client(logger& lg, int id)
 
         requests.mtx.lock();
         requests.data.push(transaction(txid, client, size));
+        lg.request_transaction(txid, client);
         requests.mtx.unlock();
-        lg.request_transaction();
     }
 }
 
 void background::executer(logger& lg, int id)
 {
-    // queueから取り出す
-    // logに書き込む
+    while (1)
+    {
+        requests.mtx.lock();
+        if (!requests.data.empty())
+        {
+            transaction tx = requests.data.front();
+            lg.request_transaction(tx.id, tx.client);
+            requests.data.pop();
+        }
+        requests.mtx.unlock();
+    }
 }
