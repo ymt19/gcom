@@ -8,13 +8,11 @@
 class tcp_connection_manager
 {
 public:
-    tcp_connection_manager(configuration* _config, txqueue* _requests);
+    tcp_connection_manager(configuration& _config, txqueue& _requests);
     ~tcp_connection_manager();
-    void run();
 private:
-    configuration* config;
-    txqueue* requests;
-
+    configuration& config;
+    txqueue& requests;
     std::thread worker;
     int connect_fd[10];
     int listen_fd;

@@ -13,10 +13,18 @@
 #include <sstream>
 #include <cereal/archives/binary.hpp>
 
-tcp_connection_manager::tcp_connection_manager(configuration* _config, txqueue* _requests)
+tcp_connection_manager::tcp_connection_manager(configuration& _config, txqueue& _requests) : config(_config), requests(_requests)
 {
-    config = _config;
-    requests = _requests;
+    std::cout << "run" << std::endl;
+
+    if (config.id == 1)
+    {
+        worker = std::thread([this]{ sender(); });
+    }
+    else
+    {
+        worker = std::thread([this]{ receiver(); });
+    }
 }
 
 tcp_connection_manager::~tcp_connection_manager()
@@ -31,26 +39,12 @@ tcp_connection_manager::~tcp_connection_manager()
     }
 }
 
-void tcp_connection_manager::run()
-{
-    std::cout << "run" << std::endl;
-
-    if (config->id == 1)
-    {
-        worker = std::thread([this]{ sender(); });
-    }
-    else
-    {
-        worker = std::thread([this]{ receiver(); });
-    }
-}
-
 void tcp_connection_manager::sender()
 {
     int ret;
     struct sockaddr_in sv_addr;
 
-    for (int slave = 0; slave < config->slaves; slave++)
+    for (int slave = 0; slave < config.slaves; slave++)
     {
         connect_fd[slave] = socket(AF_INET, SOCK_STREAM, 0);
         if(connect_fd[slave] < 0) {
@@ -59,8 +53,8 @@ void tcp_connection_manager::sender()
         }
 
         sv_addr.sin_family = AF_INET;
-        sv_addr.sin_addr.s_addr = inet_addr(config->slave_ipadder[slave]);
-        sv_addr.sin_port = htons(config->slave_port[slave]);
+        sv_addr.sin_addr.s_addr = inet_addr(config.slave_ipadder[slave]);
+        sv_addr.sin_port = htons(config.slave_port[slave]);
 
         ret = connect(connect_fd[slave], (struct sockaddr *)&sv_addr, sizeof(sv_addr));
         if(ret != 0) {
@@ -76,37 +70,37 @@ void tcp_connection_manager::sender()
     // atomic variable flag
     while (1)
     {
-        requests->mtx.lock(); /** lock **/
-        if (!requests->data.empty())
+        requests.mtx.lock(); /** lock **/
+        if (!requests.data.empty())
         {
             std::stringstream ss;
             {
                 cereal::BinaryOutputArchive oarchive(ss);
-                oarchive(requests->data.front());
+                oarchive(requests.data.front());
             }
-            requests->data.pop();
-            requests->mtx.unlock(); /** unlock **/
+            requests.data.pop();
+            requests.mtx.unlock(); /** unlock **/
 
             len = ss.str().size();
             memcpy(buff, ss.str().c_str(), len);
 
-            for (int slave = 0; slave < config->slaves; slave++)
+            for (int slave = 0; slave < config.slaves; slave++)
             {
                 ret = send(connect_fd[slave], buff, len, 0);
             }
 
-            for (int slave = 0; slave < config->slaves; slave++)
+            for (int slave = 0; slave < config.slaves; slave++)
             {
                 len = recv(connect_fd[slave], buff, BUFFSIZE, 0);
                 buff[len] = '\0';
                 std::cout << buff << std::endl;
             }
         }
-        requests->mtx.unlock(); /** unlock **/
+        requests.mtx.unlock(); /** unlock **/
     }
     /*****************************************************/
     
-    for (int slave = 0; slave < config->slaves; slave++)
+    for (int slave = 0; slave < config.slaves; slave++)
     {
         close(connect_fd[slave]);
     }
@@ -128,7 +122,7 @@ void tcp_connection_manager::receiver()
 
     sv_addr.sin_family = AF_INET;
     sv_addr.sin_addr.s_addr = INADDR_ANY;
-    sv_addr.sin_port = htons(config->port);
+    sv_addr.sin_port = htons(config.port);
 
     ret = bind(listen_fd, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
     if(ret != 0)

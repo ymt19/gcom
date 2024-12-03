@@ -8,11 +8,11 @@
 class background
 {
 public:
-    background(configuration* _config, txqueue* _requests);
+    background(configuration& _config, txqueue& _requests) : config(_config), requests(_requests) {}
     void run(logger& lg);
 private:
-    configuration* config;
-    txqueue* requests;
+    configuration& config;
+    txqueue& requests;
 
     void client(logger& lg, int id);
     void executer(logger& lg, int id);

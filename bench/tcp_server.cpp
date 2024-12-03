@@ -20,10 +20,9 @@ int main(int argc, char *argv[]) {
     logger lg(logfilename);
 
     // run connection manager
-    tcp_connection_manager tcm(&config, &requests);
-    tcm.run();
+    tcp_connection_manager tcm(config, requests);
 
     // run client thread
-    background bg(&config, &requests);
+    background bg(config, requests);
     bg.run(lg);
 }
