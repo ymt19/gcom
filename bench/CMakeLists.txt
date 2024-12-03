@@ -15,7 +15,7 @@ FetchContent_MakeAvailable(cereal)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-add_executable(tcp_server tcp_server.cpp tcp_connection_manager.cpp configuration.cpp transaction.cpp background.cpp log.cpp)
+add_executable(tcp_server tcp_server.cpp tcp_connection_manager.cpp configuration.cpp transaction.cpp background.cpp logger.cpp)
 target_link_libraries(tcp_server Threads::Threads cereal)
 # target_compile_options(tcp_server PUBLIC
 #     $<$<CONFIG:Release>: -O2 -Wall> # Release

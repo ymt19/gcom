@@ -11,6 +11,11 @@ public:
     {
         stream.close();
     }
+
+    void request_transaction();
+    void response_transaction();
+    void send_message();
+    void recv_message();
 private:
     std::ofstream stream;
 };

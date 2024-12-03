@@ -2,17 +2,18 @@
 
 #include "configuration.hpp"
 #include "transaction.hpp"
+#include "logger.hpp"
 #include <queue>
 
 class background
 {
 public:
-    background(configuration *_config, struct requests *_reqs);
-    void run();
+    background(configuration* _config, txqueue* _requests);
+    void run(logger& lg);
 private:
-    configuration *config;
-    struct requests *reqs;
+    configuration* config;
+    txqueue* requests;
 
-    void client(int id);
-    void executer(int id);
+    void client(logger& lg, int id);
+    void executer(logger& lg, int id);
 };

@@ -25,8 +25,9 @@ public:
     int size;
 };
 
-struct requests
+class txqueue
 {
+public:
     std::queue<transaction> data;
     std::mutex mtx;
 };

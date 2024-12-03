@@ -4,13 +4,13 @@
 #include <thread>
 #include <chrono>
 
-background::background(configuration *_config, struct requests *_reqs)
+background::background(configuration* _config, txqueue* _requests)
 {
     config = _config;
-    reqs = _reqs;
+    requests = _requests;
 }
 
-void background::run()
+void background::run(logger& lg)
 {
     std::vector<std::thread> threads;
     if (config->id == 1) // master
@@ -19,7 +19,7 @@ void background::run()
 
         for (int id = 1; id <= config->threads; id++)
         {
-            threads.emplace_back(std::thread(&background::client, this, id));
+            threads.emplace_back(std::thread(&background::client, this, std::ref(lg), id));
         }
 
         // wait duration
@@ -34,7 +34,7 @@ void background::run()
     {
         // start
 
-        threads.emplace_back(std::thread(&background::executer, this, 1));
+        threads.emplace_back(std::thread(&background::executer, this, std::ref(lg), 1));
 
         // wait duration
         // atomic variable flag set
@@ -43,7 +43,7 @@ void background::run()
     }
 }
 
-void background::client(int id)
+void background::client(logger& lg, int id)
 {
     int txid = 0;
     int client = id;
@@ -54,13 +54,14 @@ void background::client(int id)
         std::this_thread::sleep_for(std::chrono::seconds(1));
         txid++;
 
-        reqs->mtx.lock();
-        reqs->data.push(transaction(txid, client, size));
-        reqs->mtx.unlock();
+        requests->mtx.lock();
+        requests->data.push(transaction(txid, client, size));
+        requests->mtx.unlock();
+        lg.request_transaction();
     }
 }
 
-void background::executer(int id)
+void background::executer(logger& lg, int id)
 {
     // queueから取り出す
     // logに書き込む

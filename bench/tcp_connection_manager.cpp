@@ -13,10 +13,10 @@
 #include <sstream>
 #include <cereal/archives/binary.hpp>
 
-tcp_connection_manager::tcp_connection_manager(configuration *_config, struct requests *_reqs)
+tcp_connection_manager::tcp_connection_manager(configuration* _config, txqueue* _requests)
 {
     config = _config;
-    reqs = _reqs;
+    requests = _requests;
 }
 
 tcp_connection_manager::~tcp_connection_manager()
@@ -76,16 +76,16 @@ void tcp_connection_manager::sender()
     // atomic variable flag
     while (1)
     {
-        reqs->mtx.lock(); /** lock **/
-        if (!reqs->data.empty())
+        requests->mtx.lock(); /** lock **/
+        if (!requests->data.empty())
         {
             std::stringstream ss;
             {
                 cereal::BinaryOutputArchive oarchive(ss);
-                oarchive(reqs->data.front());
+                oarchive(requests->data.front());
             }
-            reqs->data.pop();
-            reqs->mtx.unlock(); /** unlock **/
+            requests->data.pop();
+            requests->mtx.unlock(); /** unlock **/
 
             len = ss.str().size();
             memcpy(buff, ss.str().c_str(), len);
@@ -102,7 +102,7 @@ void tcp_connection_manager::sender()
                 std::cout << buff << std::endl;
             }
         }
-        reqs->mtx.unlock(); /** unlock **/
+        requests->mtx.unlock(); /** unlock **/
     }
     /*****************************************************/
     
