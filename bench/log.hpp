@@ -3,11 +3,14 @@
 #include <string>
 #include <fstream>
 
-class log
+class logger
 {
 public:
-    log(std::string _filename);
-    ~log();
+    logger(std::string filename) : stream(filename) {}
+    ~logger()
+    {
+        stream.close();
+    }
 private:
-    std::fstream stream;
+    std::ofstream stream;
 };

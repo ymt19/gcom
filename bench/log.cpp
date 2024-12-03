@@ -1,8 +1,3 @@
-#include "log.hpp"
+#include "logger.hpp"
+#include <syncstream>
 
-log::log(std::string filename) : stream(filename) {}
-
-log::~log()
-{
-
-}
