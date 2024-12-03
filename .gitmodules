@@ -1,3 +1,0 @@
-[submodule "bench/cereal"]
-	path = bench/cereal
-	url = https://github.com/USCiLab/cereal.git
