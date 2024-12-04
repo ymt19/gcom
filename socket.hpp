@@ -5,7 +5,7 @@
 #include <signal.h>
 #include <thread>
 #include <queue>
-#include <optional>
+// #include <optional>
 #include <mutex>
 #include <map>
 
@@ -25,8 +25,7 @@ struct header
 class Socket
 {
 public:
-    Socket();
-    ~Socket();
+    Socket() : sock_fd(-1), signal_fd(1), generated_seq(0) {}
 
     void open(uint16_t port);
 
@@ -90,7 +89,8 @@ private:
     int sock_fd;
     int signal_fd;
 
-    std::optional<std::thread> background_thread;
+    // std::optional<std::thread> background_thread;
+    std::thread bgworker;
 
     std::mutex sendbuf_mtx;
     uint64_t generated_seq;

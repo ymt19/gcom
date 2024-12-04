@@ -10,17 +10,6 @@
 #include <iostream>
 #include "socket.hpp"
 
-Socket::Socket() 
-{
-    sock_fd = -1;
-    signal_fd = -1;
-    generated_seq = 0;
-}
-
-Socket::~Socket() {
-    // close();
-}
-
 void Socket::open(uint16_t port)
 {
     std::cerr << "open" << std::endl;
@@ -54,13 +43,18 @@ void Socket::open(uint16_t port)
     }
 
     // start background thread
-    background_thread.emplace(&Socket::background, this);
+    // background_thread.emplace(&Socket::background, this);
+    bgworker = std::thread([this]{ background(); });
 }
 
 void Socket::close()
 {
     kill(getpid(), SIGCLOSE);
-    background_thread->join();
+    // background_thread->join();
+    if (bgworker.joinable())
+    {
+        bgworker.join();
+    }
     ::close(sock_fd);
 }
 
