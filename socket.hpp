@@ -94,11 +94,11 @@ private:
 
     std::mutex sendbuf_mtx;
     uint64_t generated_seq;
-    RingBuffer sendbuf;
+    ring_buffer sendbuf;
     std::queue<queue_entry> sendbuf_info;
 
     std::mutex recvbuf_mtx;
-    RingBuffer recvbuf;
+    ring_buffer recvbuf;
     std::priority_queue<queue_entry, std::vector<queue_entry>, std::greater<queue_entry>> recvbuf_info;
 
 
