@@ -14,7 +14,7 @@
 #include <cereal/archives/binary.hpp>
 
 tcp_connection_manager::tcp_connection_manager(configuration& config, txqueue& requests, logger& lg) 
-    : config(config), requests(requests), lg(lg)
+    : config(config), requests(requests), lg(lg), flag(ATOMIC_FLAG_INIT)
 {
     std::cout << "run" << std::endl;
 
@@ -30,8 +30,7 @@ tcp_connection_manager::tcp_connection_manager(configuration& config, txqueue& r
 
 tcp_connection_manager::~tcp_connection_manager()
 {
-    // workerを終了させる
-    // atomic variable flag set
+    flag.test_and_set();
 
     // join
     if (worker.joinable())
@@ -68,8 +67,7 @@ void tcp_connection_manager::sender()
     char buff[BUFFSIZE];
     int len;
 
-    // atomic variable flag
-    while (1)
+    while (!flag.test())
     {
         requests.mtx.lock(); /** lock **/
         if (!requests.data.empty())
@@ -155,8 +153,7 @@ void tcp_connection_manager::receiver()
     char buff[BUFFSIZE];
     int len;
 
-    // atomic variable flag
-    while (1)
+    while (!flag.test())
     {
         len = recv(connect_fd[0], buff, BUFFSIZE, 0);
         // lg.recv_message();

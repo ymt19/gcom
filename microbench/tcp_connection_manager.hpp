@@ -19,6 +19,8 @@ private:
     int connect_fd[10];
     int listen_fd;
 
+    std::atomic_flag flag; // lock: terminated, unlock: started
+
     void sender();
     void receiver();
 };
