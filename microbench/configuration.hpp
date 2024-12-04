@@ -12,6 +12,7 @@ public:
 
     // master
     int iops = 0; // ops/sec
+    int request_interval = 0; // ms
     int threads = 0;
     int log_size = 0; // bytes
     int slaves = 0; // slaves <= 9

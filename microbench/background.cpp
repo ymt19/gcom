@@ -7,17 +7,18 @@
 void background::run(logger& lg)
 {
     std::vector<std::thread> threads;
+    flag.test_and_set();
     if (config.id == 1) // master
     {
-        // start
-
         for (int id = 1; id <= config.threads; id++)
         {
             threads.emplace_back(std::thread(&background::client, this, std::ref(lg), id));
         }
 
-        // wait duration
-        // atomic variable flag set
+        flag.clear();
+        flag.notify_all();
+        std::this_thread::sleep_for(std::chrono::seconds(config.duration));
+        flag.test_and_set();
     
         for (auto& thread : threads)
         {
@@ -26,12 +27,11 @@ void background::run(logger& lg)
     }
     else // slaves
     {
-        // start
-
         threads.emplace_back(std::thread(&background::executer, this, std::ref(lg), 1));
 
-        // wait duration
-        // atomic variable flag set
+        flag.clear();
+        std::this_thread::sleep_for(std::chrono::seconds(config.duration));
+        flag.test_and_set();
 
         threads.back().join();
     }
@@ -39,25 +39,31 @@ void background::run(logger& lg)
 
 void background::client(logger& lg, int id)
 {
+    // std::cout << "run client" << id << std::endl;
     int txid = 0;
     int client = id;
     int size = 0;
-    for (int i = 0; i < 10; i++)
+    flag.wait(true);
+    while (!flag.test())
     {
         // op/sec
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        auto start = std::chrono::high_resolution_clock::now();
         txid++;
-
         requests.mtx.lock();
         requests.data.push(transaction(txid, client, size));
         lg.request_transaction(txid, client);
         requests.mtx.unlock();
+        auto end = std::chrono::high_resolution_clock::now();
+
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        std::this_thread::sleep_for(std::chrono::milliseconds(config.request_interval) - elapsed);
     }
 }
 
 void background::executer(logger& lg, int id)
 {
-    while (1)
+    flag.wait(true);
+    while (!flag.test())
     {
         requests.mtx.lock();
         if (!requests.data.empty())

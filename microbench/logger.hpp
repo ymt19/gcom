@@ -21,7 +21,6 @@ public:
     void response_transaction(int txid, int clientid);
     void send_message(int size, std::string fromipaddr, int fromport);
     void recv_message(int size, std::string toipaddr, int toport);
-    inline double get_time();
 private:
     enum type
     {
@@ -30,6 +29,8 @@ private:
         type_send_message = 3,
         type_recv_message = 4,
     };
+
+    inline double get_time();
 
     std::chrono::system_clock::time_point start; // not bench start
     std::ofstream stream;

@@ -14,6 +14,7 @@ configuration::configuration(char *argv[])
     if (id == 1)
     {
         iops = atoi(argv[5]);
+        request_interval = 1000/iops;
         threads = atoi(argv[6]);
         log_size = atoi(argv[7]);
         slaves = atoi(argv[8]);
