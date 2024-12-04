@@ -4,9 +4,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-namespace multicast
-{
-
 class endpoint
 {
 public:
@@ -21,5 +18,3 @@ public:
     struct sockaddr_in addr_;
     bool is_group_node_;
 };
-
-} // namespace multicast

@@ -8,10 +8,7 @@
 #include <arpa/inet.h>
 #include <exception>
 #include <iostream>
-#include "multicast.hpp"
-
-namespace multicast
-{
+#include "socket.hpp"
 
 Socket::Socket() 
 {
@@ -342,5 +339,3 @@ int Socket::register_epoll_events()
 
     return epollfd;
 }
-
-} // namespace multicast

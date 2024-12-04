@@ -1,8 +1,5 @@
 #include "ring_buffer.hpp"
 
-namespace multicast
-{
-
 RingBuffer::RingBuffer()
 {
     body_ = new unsigned char[default_buffer_size];
@@ -112,5 +109,3 @@ uint64_t RingBuffer::get_max_valid_idx()
 {
     return write_idx_;
 }
-
-} // namespace multicast

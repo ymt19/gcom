@@ -6,9 +6,6 @@
 #include <cstring>
 #include <algorithm>
 
-namespace multicast
-{
-
 class RingBuffer
 {
 public:
@@ -40,5 +37,3 @@ private:
     uint64_t write_idx_;
     uint64_t read_idx_;
 };
-
-}

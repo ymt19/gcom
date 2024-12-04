@@ -9,9 +9,6 @@
 #include <mutex>
 #include <map>
 
-namespace multicast
-{
-
 #define FLAG_NCK 0x01
 
 struct header
@@ -107,5 +104,3 @@ private:
 
     std::map<int, endpoint> endpoint_list;
 };
-
-}
