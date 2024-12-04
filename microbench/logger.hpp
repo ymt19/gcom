@@ -2,11 +2,16 @@
 
 #include <string>
 #include <fstream>
+#include <chrono>
 
 class logger
 {
 public:
-    logger(std::string filename) : stream(filename) {}
+    logger(std::string filename) : stream(filename)
+    {
+        start = std::chrono::system_clock::now();
+    }
+
     ~logger()
     {
         stream.close();
@@ -26,5 +31,6 @@ private:
         type_recv_message = 4,
     };
 
+    std::chrono::system_clock::time_point start; // not bench start
     std::ofstream stream;
 };
