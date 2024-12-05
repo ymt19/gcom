@@ -157,6 +157,10 @@ void tcp_connection_manager::receiver()
     while (!flag.test())
     {
         len = recv(connect_fd[0], buff, BUFFSIZE, 0);
+        if (len == 0) // sender is shutdown.
+        {
+            break;
+        }
         // lg.recv_message();
         printf("recv:%d\n", len);
 
