@@ -7,14 +7,12 @@
 class endpoint
 {
 public:
-    endpoint(char *ipaddr, uint16_t port, bool is_group_node)
+    endpoint(std::string ipaddr, uint16_t port)
     {
         addr_.sin_family = AF_INET;
-        addr_.sin_addr.s_addr = inet_addr(ipaddr);
+        addr_.sin_addr.s_addr = inet_addr(ipaddr.c_str());
         addr_.sin_port = htons(port);
-        is_group_node_ = is_group_node;
     }
 
     struct sockaddr_in addr_;
-    bool is_group_node_;
 };
