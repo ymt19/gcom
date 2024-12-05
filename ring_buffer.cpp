@@ -1,103 +1,93 @@
 #include "ring_buffer.hpp"
 
-uint64_t ring_buffer::push(unsigned char *data, uint64_t len)
+uint64_t gcom::ring_buffer::push(unsigned char *data, uint64_t len)
 {
     uint64_t offset;
     uint64_t prev_write_idx;
 
-    if (len > this->size - (this->write_idx - this->read_idx))
+    if (len > size - (write_idx - read_idx))
     {
         throw std::exception();
     }
 
-    offset = this->write_idx % this->size;
-    if (offset + len > this->size)
+    offset = write_idx % size;
+    if (offset + len > size)
     {
-        std::memcpy((void *)(this->body + offset), data, this->size);
-        std::memcpy((void *)this->body, data + (this->size - offset), len - (this->size - offset));
+        std::memcpy((void *)(body + offset), data, size);
+        std::memcpy((void *)body, data + (size - offset), len - (size - offset));
     }
     else
     {
-        std::memcpy((void *)(this->body + offset), data, len);
+        std::memcpy((void *)(body + offset), data, len);
     }
 
-    prev_write_idx = this->write_idx;
-    this->write_idx += len;
+
+    prev_write_idx = write_idx;
+    write_idx += len;
+
+    if (write_idx - zombie_idx > size)
+    {
+        // calc zombie index
+        zombie_idx = write_idx - size;
+    }
+
     return prev_write_idx;
 }
 
-uint64_t ring_buffer::pop(unsigned char *data, uint64_t len)
+uint64_t gcom::ring_buffer::pop(unsigned char *data, uint64_t len)
 {
     std::string pop_str;
     try
     {
-        get(this->read_idx, data, len);
+        get(read_idx, data, len);
     }
     catch(const std::exception& e)
     {
         throw std::exception();
     }
-    
 
-    this->read_idx += len;
-    return this->read_idx;
+    read_idx += len;
+    return read_idx;
 }
 
-void ring_buffer::set(uint64_t idx, unsigned char *data, uint64_t len)
+void gcom::ring_buffer::set(uint64_t idx, unsigned char *data, uint64_t len)
 {
     uint64_t offset;
 
-    if (idx < this->read_idx || idx + len > this->write_idx)
+    if (idx < read_idx || idx + len > write_idx)
     {
         throw std::exception();
     }
 
-    offset = idx % this->size;
-    if (offset + len > this->size)
+    offset = idx % size;
+    if (offset + len > size)
     {
-        std::memcpy((void *)(this->body + offset), data, this->size);
-        std::memcpy((void *)this->body, data + (this->size - offset), len - (this->size - offset));
+        std::memcpy((void *)(body + offset), data, size);
+        std::memcpy((void *)body, data + (size - offset), len - (size - offset));
     }
     else
     {
-        std::memcpy((void *)(this->body + offset), data, len);
+        std::memcpy((void *)(body + offset), data, len);
     }
 }
 
-void ring_buffer::get(uint64_t idx, unsigned char *data, uint64_t len)
+void gcom::ring_buffer::get(uint64_t idx, unsigned char *data, uint64_t len)
 {
     uint64_t offset;
 
-    if (idx < get_min_valid_idx() || idx + len > get_max_valid_idx())
+    if (idx < zombie_idx || idx > write_idx - len)
     {
         throw std::exception();
     }
 
-    offset = idx % this->size;
-    if (offset + len > this->size)
+    offset = idx % size;
+    if (offset + len > size)
     {
-        std::memcpy((void *)data, this->body + offset, this->size - offset);
-        std::memcpy((void *)(data + (this->size - offset)), this->body, len - (this->size - offset));
+        std::memcpy((void *)data, body + offset, size - offset);
+        std::memcpy((void *)(data + (size - offset)), body, len - (size - offset));
     }
     else
     {
-        std::memcpy((void *)data, this->body + offset, len);
+        std::memcpy((void *)data, body + offset, len);
     }
-}
-
-uint64_t ring_buffer::get_min_valid_idx()
-{
-    if (this->write_idx < this->size)
-    {
-        return 0;
-    }
-    else
-    {
-        return this->write_idx - this->size;
-    }
-}
-
-uint64_t ring_buffer::get_max_valid_idx()
-{
-    return this->write_idx;
 }
