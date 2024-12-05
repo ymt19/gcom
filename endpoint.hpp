@@ -4,6 +4,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+namespace gcom
+{
+
 class endpoint
 {
 public:
@@ -16,3 +19,5 @@ public:
 
     struct sockaddr_in addr_;
 };
+
+} // namespace gcom

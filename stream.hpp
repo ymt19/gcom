@@ -4,19 +4,24 @@
 #include <mutex>
 #include <queue>
 
-class sstream
+namespace gcom
+{
+
+class send_stream
 {
 public:
+    send_stream(int buffsize) : nextseq(1), buff(buffsize) {}
 private:
     std::mutex mtx;
-    int seq;
+    int nextseq;
     ring_buffer buff;
     std::queue<queue_entry> info;
 };
 
-class rstream
+class recv_stream
 {
 public:
+    recv_stream(int buffsize) : buff(buffsize) {}
 private:
     std::mutex mtx;
     ring_buffer buff;
@@ -34,17 +39,11 @@ public:
     int src_id;    // send bufの場合-1
     int dest_id;   // recv bufの場合-1
 
-    queue_entry(uint64_t _idx, uint32_t _payload_len, uint64_t _seq, uint32_t _head, uint32_t _tail, int _src_id, int _dest_id)
-    {
-        idx = _idx;
-        payload_len = _payload_len;
-        seq = _seq;
-        head = _head;
-        tail = _tail;
-        src_id = _src_id;
-        dest_id = _dest_id;
-    }
+    queue_entry(uint64_t idx, uint32_t payload_len, uint64_t seq, uint32_t head, uint32_t tail, int src_id, int dest_id)
+        : idx(idx), payload_len(payload_len), seq(seq), head(head), tail(tail), src_id(src_id), dest_id(dest_id) {}
 
     bool operator< (const queue_entry& a) const { return idx < a.idx; }
     bool operator> (const queue_entry& a) const { return idx > a.idx; }
 };
+
+} // namespace gcom
