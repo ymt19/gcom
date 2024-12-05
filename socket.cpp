@@ -1,33 +1,23 @@
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/signalfd.h>
-#include <sys/epoll.h>
-#include <unistd.h>
-#include <signal.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <exception>
-#include <iostream>
 #include "socket.hpp"
 
-void Socket::open(uint16_t port)
+void gcom::socket::open(uint16_t port)
 {
     std::cerr << "open" << std::endl;
-    std::cout << "MAX_PACKET_SIZE " << MAX_PACKET_SIZE << std::endl;
-    std::cout << "MAX_PAYLOAD_SIZE " << MAX_PAYLOAD_SIZE << std::endl;
+    std::cerr << "PACKET_SIZE " << PACKET_SIZE << std::endl;
+    std::cerr << "PAYLOAD_SIZE " << PAYLOAD_SIZE << std::endl;
     struct sockaddr_in addr;
 
     // init sockfd_
-    sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    sock_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
     if (sock_fd == -1)
     {
         throw std::exception();
     }
 
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
+    addr.sin_port = ::htons(port);
     addr.sin_addr.s_addr = INADDR_ANY;
-    if (bind(sock_fd, (struct sockaddr *)&addr, sizeof(addr)) != 0)
+    if (::bind(sock_fd, (struct sockaddr *)&addr, sizeof(addr)) != 0)
     {
         throw std::exception();
     }
@@ -43,22 +33,21 @@ void Socket::open(uint16_t port)
     }
 
     // start background thread
-    // background_thread.emplace(&Socket::background, this);
-    bgworker = std::thread([this]{ background(); });
+    bgthread = std::thread([this]{ background(); });
 }
 
-void Socket::close()
+void gcom::socket::close()
 {
     kill(getpid(), SIGCLOSE);
     // background_thread->join();
-    if (bgworker.joinable())
+    if (bgthread.joinable())
     {
-        bgworker.join();
+        bgthread.join();
     }
     ::close(sock_fd);
 }
 
-void Socket::sendto(const void *data, size_t len, int dest_id)
+void gcom::socket::sendto(const void *data, size_t len, std::set<endpoint>& to)
 {
     uint64_t idx;
     uint32_t begin, end;
@@ -69,7 +58,7 @@ void Socket::sendto(const void *data, size_t len, int dest_id)
     sendbuf_mtx.lock();
 
     begin = generated_seq + 1;
-    end = generated_seq + (len - 1) / (uint32_t)(MAX_PAYLOAD_SIZE) + 1;
+    end = generated_seq + (len - 1) / (uint32_t)(PAYLOAD_SIZE) + 1;
     for (int seq = begin; seq <= end; seq++)
     {
         payload_len = std::min(len - offset, MAX_PAYLOAD_SIZE);
@@ -84,7 +73,7 @@ void Socket::sendto(const void *data, size_t len, int dest_id)
     kill(getpid(), SIGSEND);
 }
 
-ssize_t Socket::recvfrom(void *data)
+ssize_t gcom::socket::recvfrom(void *buf, endpoint& from)
 {
     uint32_t next, head, tail, len = 0;
 
@@ -135,14 +124,14 @@ ssize_t Socket::recvfrom(void *data)
     return len;
 }
 
-void Socket::add_endpoint(int id, char *ipaddr, uint16_t port, bool is_same_group)
+void gcom::socket::add_to_group(endpoint& ep)
 {
-    endpoint_list.insert(std::make_pair(id, endpoint(ipaddr, port, is_same_group)));
+    group.insert(ep);
 }
 
-ssize_t Socket::output_packet(uint32_t seq, uint32_t begin, uint32_t end, uint8_t flag, const void *payload, size_t len, int dest_id)
+ssize_t gcom::socket::output_packet(uint32_t seq, uint32_t begin, uint32_t end, uint8_t flag, const void *payload, size_t len, int dest_id)
 {
-    unsigned char buf[MAX_PACKET_SIZE] = {};
+    unsigned char buf[PACKET_SIZE] = {};
     struct header *hdr;
     uint32_t total;
 
@@ -163,9 +152,9 @@ ssize_t Socket::output_packet(uint32_t seq, uint32_t begin, uint32_t end, uint8_
     return len; // -1の場合sendto()error
 }
 
-size_t Socket::input_packet(uint32_t *seq, uint32_t *begin, uint32_t *end, uint8_t *flag, void *payload)
+size_t gcom::socket::input_packet(uint32_t *seq, uint32_t *begin, uint32_t *end, uint8_t *flag, void *payload)
 {
-    unsigned char buf[MAX_PACKET_SIZE] = {};
+    unsigned char buf[PACKET_SIZE] = {};
     ssize_t buf_len, payload_len;
     struct header *hdr;
     struct sockaddr_in src;
@@ -185,9 +174,9 @@ size_t Socket::input_packet(uint32_t *seq, uint32_t *begin, uint32_t *end, uint8
     return payload_len;
 }
 
-void Socket::output_all()
+void gcom::socket::output_all()
 {
-    unsigned char payload[MAX_PAYLOAD_SIZE];
+    unsigned char payload[PAYLOAD_SIZE];
     ssize_t len;
     uint8_t flag = 0x00;
 
@@ -216,12 +205,12 @@ void Socket::output_all()
     sendbuf_mtx.unlock();
 }
 
-void *Socket::background()
+void *gcom::socket::background()
 {
     struct epoll_event events[max_epoll_events];
     int epollfd, nfds;
     struct signalfd_siginfo fdsi;
-    unsigned char payload[MAX_PAYLOAD_SIZE];
+    unsigned char payload[PAYLOAD_SIZE];
     ssize_t len;
 
     epollfd = register_epoll_events();
@@ -288,7 +277,7 @@ void *Socket::background()
     }
 }
 
-int Socket::get_signalfd()
+int gcom::socket::get_signalfd()
 {
     sigset_t mask;
     int fd;
@@ -304,7 +293,7 @@ int Socket::get_signalfd()
     return fd;
 }
 
-int Socket::register_epoll_events()
+int gcom::socket::register_epoll_events()
 {
     int epollfd;
     struct epoll_event ev;
