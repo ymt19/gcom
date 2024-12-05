@@ -9,7 +9,10 @@
 class ring_buffer
 {
 public:
-    ring_buffer();
+    ring_buffer(uint64_t size) : size(size), write_idx(0), read_idx(0)
+    {
+        body = new unsigned char[size];
+    }
 
     // Allocates space in the buffer and writes data to it.
     // Returns prev write index. 
@@ -29,8 +32,6 @@ private:
 
     //
     uint64_t get_max_valid_idx();
-
-    const uint64_t default_size = 4096;
 
     unsigned char *body;
     uint64_t size;

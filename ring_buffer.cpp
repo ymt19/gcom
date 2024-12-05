@@ -1,13 +1,5 @@
 #include "ring_buffer.hpp"
 
-ring_buffer::ring_buffer()
-{
-    body = new unsigned char[default_size];
-    size = default_size;
-    write_idx = 0;
-    read_idx = 0;
-}
-
 uint64_t ring_buffer::push(unsigned char *data, uint64_t len)
 {
     uint64_t offset;
