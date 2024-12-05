@@ -16,8 +16,6 @@
 tcp_connection_manager::tcp_connection_manager(configuration& config, txqueue& requests, logger& lg) 
     : config(config), requests(requests), lg(lg), flag(ATOMIC_FLAG_INIT)
 {
-    std::cout << "run" << std::endl;
-
     if (config.id == 1)
     {
         worker = std::thread([this]{ sender(); });
@@ -65,13 +63,14 @@ void tcp_connection_manager::sender()
 
     /****************** Senderプロトコル ******************/
     char buff[BUFFSIZE];
-    int len;
+    int len, datasize;
 
     while (!flag.test())
     {
         requests.mtx.lock(); /** lock **/
         if (!requests.data.empty())
         {
+            datasize = requests.data.front().size;
             std::stringstream ss;
             {
                 cereal::BinaryOutputArchive oarchive(ss);
@@ -80,22 +79,24 @@ void tcp_connection_manager::sender()
             requests.data.pop();
             requests.mtx.unlock(); /** unlock **/
 
-            len = ss.str().size();
-            memcpy(buff, ss.str().c_str(), len);
+            std::cout << datasize << std::endl;
+            len = create_message(datasize, buff, BUFFSIZE, ss.str());
 
             for (int slave = 0; slave < config.slaves; slave++)
             {
                 ret = send(connect_fd[slave], buff, len, 0);
-                // lg.send_message(ret, std::string(config.slave_ipadder[slave]), config.slave_port[slave]);
+                lg.send_message(ret, std::string(config.slave_ipadder[slave]), config.slave_port[slave]);
             }
 
-            for (int slave = 0; slave < config.slaves; slave++)
-            {
-                len = recv(connect_fd[slave], buff, BUFFSIZE, 0);
-                // lg.recv_message(len, std::string(config.slave_ipadder[slave]), config.slave_port[slave]);
-                buff[len] = '\0';
-                std::cout << buff << std::endl;
-            }
+            // for (int slave = 0; slave < config.slaves; slave++)
+            // {
+            //     len = recv(connect_fd[slave], buff, BUFFSIZE, 0);
+            //     lg.recv_message(len, std::string(config.slave_ipadder[slave]), config.slave_port[slave]);
+            //     buff[len] = '\0';
+            //     std::cout << buff << std::endl;
+            // }
+
+            continue;
         }
         requests.mtx.unlock(); /** unlock **/
     }
@@ -150,7 +151,7 @@ void tcp_connection_manager::receiver()
 
 
     /****************** Recieverプロトコル ******************/
-    char buff[BUFFSIZE];
+    char buff[BUFFSIZE], data[BUFFSIZE];
     int len;
 
     while (!flag.test())
@@ -161,7 +162,8 @@ void tcp_connection_manager::receiver()
 
         transaction tx;
         std::stringstream ss;
-        ss.write(buff, len);
+        len = analyze_message(data, buff);
+        ss.write(data, len);
         cereal::BinaryInputArchive iarchive(ss);
         iarchive(tx);
 
@@ -171,13 +173,31 @@ void tcp_connection_manager::receiver()
         requests.data.push(tx);
         requests.mtx.unlock();
 
-        // 返答
-        sprintf(buff, "ackfrom%d", tx.id);
-        ret = send(connect_fd[0], buff, strlen(buff), 0);
-        // lg.send_message();
+        // // 返答
+        // sprintf(buff, "ackfrom%d", tx.id);
+        // ret = send(connect_fd[0], buff, strlen(buff), 0);
+        // // lg.send_message();
     }
     /******************************************************/
 
     close(connect_fd[0]);
     close(listen_fd);
+}
+
+int tcp_connection_manager::create_message(int len, char *c_msg, int msgsize, std::string data)
+{
+    int data_size = data.size();
+    memset(c_msg, 0, msgsize);
+    memcpy(c_msg + offset_size, &data_size, sizeof(int));
+    memcpy(c_msg + offset_data, data.c_str(), data_size);
+    return std::min(msgsize, len);
+}
+
+int tcp_connection_manager::analyze_message(char *c_data, char *msg)
+{
+    int data_size;
+    memcpy(&data_size, msg + offset_size, sizeof(int));
+    memcpy(c_data, msg + offset_data, data_size);
+    c_data[data_size] = '\0';
+    return data_size;
 }

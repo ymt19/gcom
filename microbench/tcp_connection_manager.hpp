@@ -23,4 +23,13 @@ private:
 
     void sender();
     void receiver();
+
+    enum message_offset
+    {
+        offset_size = 0,
+        offset_data = offset_size + sizeof(int),
+    };
+
+    int create_message(int len, char *msg, int msgsize, std::string data);
+    int analyze_message(char *c_data, char *msg);
 };

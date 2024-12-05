@@ -42,7 +42,7 @@ void background::client(logger& lg, int id)
     // std::cout << "run client" << id << std::endl;
     int txid = 0;
     int client = id;
-    int size = 0;
+    int size = config.log_size;
     flag.wait(true);
     while (!flag.test())
     {
