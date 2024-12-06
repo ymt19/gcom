@@ -1,15 +1,15 @@
 #include "socket.hpp"
 
-void gcom::socket::open(uint16_t port)
+gcom::socket::socket(uint16_t port) : flag(ATOMIC_FLAG_INIT)
 {
     std::cerr << "open" << std::endl;
-    std::cerr << "PACKET_SIZE " << PACKET_SIZE << std::endl;
-    std::cerr << "PAYLOAD_SIZE " << PAYLOAD_SIZE << std::endl;
+    std::cerr << "PACKET_SIZE " << packet_size << std::endl;
+    std::cerr << "PAYLOAD_SIZE " << payload_size << std::endl;
     struct sockaddr_in addr;
 
-    // init sockfd_
-    sock_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock_fd == -1)
+    // init sockfd
+    sockfd = ::socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd == -1)
     {
         throw std::exception();
     }
@@ -17,123 +17,88 @@ void gcom::socket::open(uint16_t port)
     addr.sin_family = AF_INET;
     addr.sin_port = ::htons(port);
     addr.sin_addr.s_addr = INADDR_ANY;
-    if (::bind(sock_fd, (struct sockaddr *)&addr, sizeof(addr)) != 0)
+    if (::bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) != 0)
     {
         throw std::exception();
     }
 
-    // init signalfd_
-    try
-    {
-        signal_fd = get_signalfd();
-    }
-    catch(const std::exception& e)
+    // init epollfd
+    epollfd = epoll_create1(0);
+    if (epollfd == -1)
     {
         throw std::exception();
     }
+
+    register_epoll_event(sockfd);
+
+    // init flag
+    flag.test_and_set();
 
     // start background thread
     bgthread = std::thread([this]{ background(); });
 }
 
-void gcom::socket::close()
+gcom::socket::~socket()
 {
-    kill(getpid(), SIGCLOSE);
-    // background_thread->join();
+    flag.test_and_set();
+
     if (bgthread.joinable())
     {
         bgthread.join();
     }
-    ::close(sock_fd);
+
+    ::close(epollfd);
+    ::close(sockfd);
 }
 
-void gcom::socket::sendto(const void *data, size_t len, std::set<endpoint>& to)
+void gcom::socket::sendto(const void *data, size_t len, endpoint& dest)
 {
-    uint64_t idx;
-    uint32_t begin, end;
-    uint32_t payload_len, offset = 0;
-
-    printf("sendto(): data:%s, len:%ld, dest_id:%d\n", (char *)data, len, dest_id);
-
-    sendbuf_mtx.lock();
-
-    begin = generated_seq + 1;
-    end = generated_seq + (len - 1) / (uint32_t)(PAYLOAD_SIZE) + 1;
-    for (int seq = begin; seq <= end; seq++)
+    if (sstreamset.size() < max_streams)
     {
-        payload_len = std::min(len - offset, MAX_PAYLOAD_SIZE);
-        idx = sendbuf.push((unsigned char *)data + offset, payload_len);
-        sendbuf_info.push(queue_entry(idx, payload_len, seq, begin, end, -1, dest_id));
-        offset += payload_len;
+        int id;
+        auto ret = sstreamset.insert(std::make_pair(id, send_stream(dest, buffer_size)));
+        sstreamset_itr = ret.first;
     }
-    generated_seq = end;
 
-    sendbuf_mtx.unlock();
+    if (sstreamset_itr == nullptr)
+    {
+        sstreamset_itr = sstreamset.begin();
+    }
 
-    kill(getpid(), SIGSEND);
+    sstreamset_itr->second.push();
 }
 
 ssize_t gcom::socket::recvfrom(void *buf, endpoint& from)
 {
-    uint32_t next, head, tail, len = 0;
+    uint32_t len = 0;
 
-    while (true)
+    // recv stream.get()
+    while (len != 0)
     {
-        recvbuf_mtx.lock();
-        if (!recvbuf_info.empty())
-        {
-            const queue_entry& en = recvbuf_info.top();
-            std::cout << en.head << " " << en.seq << std::endl;
-            if (len == 0 && en.head == en.seq)
-            {
-                head = en.head;
-                next = head+1;
-                tail = en.tail;
-                len += en.payload_len;
-                recvbuf_info.pop();
-                recvbuf_mtx.unlock();
-                break;
-            }
-        }
-        recvbuf_mtx.unlock();
-        std::this_thread::sleep_for(std::chrono::microseconds(1));
-    }
-    while (next <= tail)
-    {
-        recvbuf_mtx.lock();
-        if (!recvbuf_info.empty())
-        {
-            const queue_entry& en = recvbuf_info.top();
-            std::cout << en.head << " " << en.seq << " " << next << std::endl;
-            if (en.seq == next)
-            {
-                next++;
-                len += en.payload_len;
-                recvbuf_info.pop();
-            }
-        }
-        recvbuf_mtx.unlock();
-        std::this_thread::sleep_for(std::chrono::microseconds(1));
+        // rstream_set_itrを回す
+        //  // 見つけたらrstreamset_itr->get()
     }
 
-    // recv bufferから取得
-    recvbuf_mtx.lock();
-    recvbuf.pop((unsigned char *)data, len);
-    recvbuf_mtx.unlock();
+    // recv_stream.pop()
 
     return len;
 }
 
-void gcom::socket::add_to_group(endpoint& ep)
+void gcom::socket::add_group(endpoint& ep)
 {
     group.insert(ep);
 }
 
-ssize_t gcom::socket::output_packet(uint32_t seq, uint32_t begin, uint32_t end, uint8_t flag, const void *payload, size_t len, int dest_id)
+ssize_t gcom::socket::output_packet(uint32_t seq, uint32_t begin, uint32_t end, uint8_t flag, const void *payload, size_t len, endpoint& dest)
 {
-    unsigned char buf[PACKET_SIZE] = {};
+    struct sockaddr_in addr;
+    unsigned char buf[packet_size];
     struct header *hdr;
     uint32_t total;
+
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = inet_addr(dest.ipaddr.c_str());
+    addr.sin_port = htons(dest.port);
 
     hdr = (struct header *)buf;
     hdr->seq = seq;
@@ -143,24 +108,26 @@ ssize_t gcom::socket::output_packet(uint32_t seq, uint32_t begin, uint32_t end, 
     std::memcpy(hdr + 1, payload, len);
     total = sizeof(struct header) + len;
 
-    // - std::map endpoint_list_の参照は参照ではなくていいのか？
-    endpoint dest = endpoint_list.at(dest_id);
-    len = ::sendto(sock_fd, buf, total, 0, (struct sockaddr *)&(dest.addr_), sizeof(dest.addr_));
+    len = ::sendto(sockfd, buf, total, 0, (struct sockaddr *)&(addr), sizeof(addr));
+    if (len < 0)
+    {
+        throw std::exception();
+    }
 
-    printf("output_packet(): len:%ld, seq:%d, begin:%d, end:%d, payload:%s dest:%d\n", len, seq, begin, end, (char *)payload, dest_id);
+    fprintf(stderr, "output_packet(): len:%ld, seq:%d, begin:%d, end:%d, payload:%s ipaddr:%s, port:%d\n", len, seq, begin, end, (char *)payload, dest.ipaddr, dest.port);
 
-    return len; // -1の場合sendto()error
+    return len;
 }
 
 size_t gcom::socket::input_packet(uint32_t *seq, uint32_t *begin, uint32_t *end, uint8_t *flag, void *payload)
 {
-    unsigned char buf[PACKET_SIZE] = {};
-    ssize_t buf_len, payload_len;
+    struct sockaddr_in addr;
+    socklen_t addr_len = sizeof(addr);
+    unsigned char buf[packet_size];
     struct header *hdr;
-    struct sockaddr_in src;
-    socklen_t srclen = sizeof(src);
+    ssize_t buf_len, payload_len;
 
-    buf_len = ::recvfrom(sock_fd, buf, MAX_PACKET_SIZE, 0, (struct sockaddr *)&src, &srclen);
+    buf_len = ::recvfrom(sockfd, buf, packet_size, 0, (struct sockaddr *)&addr, &addr_len);
     payload_len = buf_len - sizeof(struct header);
     hdr = (struct header *)buf;
     *seq = hdr->seq;
@@ -169,156 +136,82 @@ size_t gcom::socket::input_packet(uint32_t *seq, uint32_t *begin, uint32_t *end,
     *flag = hdr->flag;
     std::memcpy(payload, buf + sizeof(struct header), payload_len);
 
-    printf("input_packet(): len:%ld, seq:%d, begin:%d, end:%d, payload:%s\n", payload_len, *seq, *begin, *end, (char *)payload);
+    fprintf(stderr, "input_packet(): len:%ld, seq:%d, begin:%d, end:%d, payload:%s\n", payload_len, *seq, *begin, *end, (char *)payload);
 
     return payload_len;
 }
 
-void gcom::socket::output_all()
+void gcom::socket::transmit_ready_packets()
 {
-    unsigned char payload[PAYLOAD_SIZE];
-    ssize_t len;
-    uint8_t flag = 0x00;
-
-    sendbuf_mtx.lock();
-    while (!sendbuf_info.empty())
-    {
-        std::memset(payload, '\0', MAX_PAYLOAD_SIZE);
-        queue_entry& en = sendbuf_info.front();
-        sendbuf.get(en.idx, payload, en.payload_len);
-        if (en.dest_id == 0) // 全ノードに送信
-        {
-            for (auto dest = endpoint_list.begin(); dest != endpoint_list.end(); ++dest)
-            {
-                len = output_packet(en.seq, en.head, en.tail, flag, payload, en.payload_len, dest->first);
-            }
-        }
-        else // 指定ノードに送信
-        {
-            len = output_packet(en.seq, en.head, en.tail, flag, payload, en.payload_len, en.dest_id);
-
-            std::memset(payload, '\0', MAX_PAYLOAD_SIZE);
-            len = output_packet(0, 0, 0, FLAG_NCK, payload, 0, en.dest_id);
-        }
-        sendbuf_info.pop();
-    }
-    sendbuf_mtx.unlock();
+    // stream
 }
 
-void *gcom::socket::background()
+void gcom::socket::retransmit_packets(int streamid)
+{
+    // 
+}
+
+void gcom::socket::process_arriving_packet()
+{
+    ssize_t len;
+    len = input_packet();
+    if () // data packet
+    {
+
+    }
+    else if () // nack packet
+    {
+
+    }
+    else if () // ack packet
+    {
+
+    }
+}
+
+void gcom::socket::background()
 {
     struct epoll_event events[max_epoll_events];
     int epollfd, nfds;
-    struct signalfd_siginfo fdsi;
-    unsigned char payload[PAYLOAD_SIZE];
+    unsigned char payload[payload_size];
     ssize_t len;
 
-    epollfd = register_epoll_events();
-
-    for (;;)
+    while (!flag.test())
     {
-        nfds = epoll_wait(epollfd, events, max_epoll_events, -1);
-        if (nfds == -1)
+        nfds = epoll_wait(epollfd, events, max_epoll_events, epoll_wait_timeout);
+        if (nfds > 0)
         {
-            exit(EXIT_FAILURE);
-        }
-
-        for (int i = 0; i < nfds; ++i)
-        {
-/**************************** multicast algorithm ********************************/
-            if (events[i].data.fd == sock_fd)
+            for (int i = 0; i < nfds; i++)
             {
-                struct header hdr;
-                uint64_t idx;
-
-                std::memset(payload, '\0', MAX_PAYLOAD_SIZE);
-                len = input_packet(&hdr.seq, &hdr.head, &hdr.tail, &hdr.flag, payload);
-
-                if (hdr.flag & FLAG_NCK)
+                if (events[i].data.fd == sockfd)
                 {
-                    std::cout << "recv nack" << std::endl;
+                    process_arriving_packet();
                 }
                 else
                 {
-                    recvbuf_mtx.lock();
-                    idx = recvbuf.push(payload, len);
-                    recvbuf_info.push(queue_entry(idx, len, hdr.seq, hdr.head, hdr.tail, -1, -1)); // src_id_を特定する
-                    recvbuf_mtx.unlock();
+                    // data.fd == timer_fd;
+                    for (;;)
+                    {
+                        retransmit_packets();
+                        continue;
+                    }
                 }
             }
-            else if (events[i].data.fd == signal_fd)
-            {
-                len = read(signal_fd, &fdsi, sizeof(struct signalfd_siginfo));
-                if (len != sizeof(struct signalfd_siginfo))
-                {
-                    // error
-                    continue;
-                }
-
-                if (fdsi.ssi_signo == SIGSEND)
-                {
-                    std::cerr << "SIGSEND" << std::endl;
-                    output_all();
-                    continue;
-                }
-                else if (fdsi.ssi_signo == SIGCLOSE)
-                {
-                    std::cerr << "SIGCLOSE" << std::endl;
-                    return nullptr;
-                }
-                else
-                {
-                    fprintf(stderr, "read unexpected signal.\n");
-                    continue;
-                }
-            }
-/*********************************************************************************/
         }
+
+        transmit_ready_packets();
     }
 }
 
-int gcom::socket::get_signalfd()
+void gcom::socket::register_epoll_event(int fd)
 {
-    sigset_t mask;
-    int fd;
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGSEND);
-    sigaddset(&mask, SIGCLOSE);
-    sigprocmask(SIG_BLOCK, &mask, NULL);
-    fd = signalfd(-1, &mask, SFD_CLOEXEC);
-    if (fd == -1)
-    {
-        throw std::exception();
-    }
-    return fd;
-}
-
-int gcom::socket::register_epoll_events()
-{
-    int epollfd;
     struct epoll_event ev;
-
-    epollfd = epoll_create1(0);
-    if (epollfd == -1)
-    {
-        exit(EXIT_FAILURE);
-    }
     
     // Register sockfd_ in epollfd.
     ev.events = EPOLLIN;
-    ev.data.fd = sock_fd;
-    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sock_fd, &ev) == -1)
+    ev.data.fd = fd;
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev) == -1)
     {
-        exit(EXIT_FAILURE);
+        throw std::exception();
     }
-
-    // Register signalfd_ in epollfd.
-    ev.events = EPOLLIN;
-    ev.data.fd = signal_fd;
-    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, signal_fd, &ev) == -1)
-    {
-        exit(EXIT_FAILURE);
-    }
-
-    return epollfd;
 }
