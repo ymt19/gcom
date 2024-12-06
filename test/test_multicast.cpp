@@ -1,19 +1,19 @@
 #include <gtest/gtest.h>
 
-#include "../multicast.hpp"
+#include "../socket.hpp"
 
 class TestSocket : public ::testing::Test
 {
 protected:
     virtual void SetUp()
     {
-        socket = new multicast::Socket();
+        sender = new gcom::socket(10000);
     }
 
     virtual void TearDown()
     {
-        delete socket;
+        delete sender;
     }
 
-    multicast::Socket *socket;
-}
+    gcom::socket *sender;
+};
