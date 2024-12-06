@@ -1,8 +1,6 @@
 #pragma once
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include <string>
 
 namespace gcom
 {
@@ -10,14 +8,11 @@ namespace gcom
 class endpoint
 {
 public:
-    endpoint(std::string ipaddr, uint16_t port)
-    {
-        addr_.sin_family = AF_INET;
-        addr_.sin_addr.s_addr = inet_addr(ipaddr.c_str());
-        addr_.sin_port = htons(port);
-    }
+    endpoint(std::string ipaddr, uint16_t port) : ipaddr(ipaddr), port(port) {}
+    endpoint(const endpoint& ep) : ipaddr(ep.ipaddr), port(ep.port) {}
 
-    struct sockaddr_in addr_;
+    std::string ipaddr;
+    uint16_t port;
 };
 
 } // namespace gcom
