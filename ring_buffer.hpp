@@ -29,6 +29,11 @@ public:
 
     //
     void get(uint64_t idx, unsigned char *data, uint64_t len);
+
+    uint64_t get_zombie_idx()
+    {
+        return zombie_idx;
+    }
 private:
     unsigned char *body;
     uint64_t size;
