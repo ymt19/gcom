@@ -33,16 +33,16 @@ public:
 
     void add_group(endpoint& ep);
 private:
-    const int max_epoll_events = 16;
-    const int epoll_wait_timeout = 1;   // [ms]
-    const int max_streams = 5;
-    const int buffer_size = 8192; // [bytes]
-    const int packet_size = 1472;
+    static const int max_epoll_events = 16;
+    static const int epoll_wait_timeout = 1;   // [ms]
+    static const int max_streams = 5;
+    static const int buffer_size = 8192; // [bytes]
+    static const int packet_size = 1472;
     const int payload_size = packet_size - sizeof(struct header);
 
     struct header
     {
-        uint32_t streamid;      // stream id
+        uint32_t streamid;       // stream id
         uint32_t this_seqid;     // seaquence number
         uint32_t head_seqid;     // 
         uint32_t tail_seqid;
@@ -51,13 +51,17 @@ private:
     const int FLAG_NCK = 0x01;
 
     // パケットを送信
-    ssize_t output_packet(uint32_t seq, uint32_t begin, uint32_t end, uint8_t flag, const void *payload, size_t len, endpoint& dest);
+    ssize_t output_packet(const struct header* hdr, const void *payload, size_t len, endpoint& dest);
 
     // パケットを受信
-    size_t input_packet(uint32_t *seq, uint32_t *begin, uint32_t *end, uint8_t *flag, void *payload);
+    size_t input_packet(struct header* hdr, void *payload);
 
     // 送信バッファ内のデータを送信
     void transmit_ready_packets();
+
+    void transmit_ack_packet();
+
+    void transmit_nack_packet();
 
     // 再送
     void retransmit_packets(int streamid);
@@ -74,10 +78,10 @@ private:
     int timerfd;
     std::atomic_flag flag; // lock: terminated, unlock: started
     std::thread bgthread;
-    std::map<int, send_stream> sstreamset; // streamid : send_stream
-    std::map<int, send_stream>::iterator sstreamset_itr;
-    std::map<int, recv_stream> rstreamset; // streamid : recv_stream
-    std::map<int, recv_stream>::iterator rstreamset_itr;
+    std::map<int, stream> sstreams; // streamid : send_stream
+    std::map<int, stream>::iterator sstreams_itr;
+    std::map<int, stream> rstreams; // streamid : recv_stream
+    std::map<int, stream>::iterator rstreams_itr;
     std::set<endpoint> group;
 };
 

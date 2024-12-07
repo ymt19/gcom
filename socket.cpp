@@ -2,9 +2,6 @@
 
 gcom::socket::socket(uint16_t port) : flag(ATOMIC_FLAG_INIT)
 {
-    std::cerr << "open" << std::endl;
-    std::cerr << "PACKET_SIZE " << packet_size << std::endl;
-    std::cerr << "PAYLOAD_SIZE " << payload_size << std::endl;
     struct sockaddr_in addr;
 
     // init sockfd
@@ -49,23 +46,28 @@ gcom::socket::~socket()
 
     ::close(epollfd);
     ::close(sockfd);
+    // close timerfd
 }
 
 void gcom::socket::sendto(const void *data, size_t len, endpoint& dest)
 {
-    if (sstreamset.size() < max_streams)
+    if (sstreams.size() < max_streams) // create new stream
     {
         int id;
-        auto ret = sstreamset.insert(std::make_pair(id, send_stream(dest, buffer_size)));
-        sstreamset_itr = ret.first;
+        auto ret = sstreams.insert(std::make_pair(id, stream(dest, buffer_size)));
+        sstreams_itr = ret.first;
+
+        // create and init new timerfd
+
     }
 
-    if (sstreamset_itr == nullptr)
+    if (sstreams_itr == nullptr)
     {
-        sstreamset_itr = sstreamset.begin();
+        sstreams_itr = sstreams.begin();
     }
 
-    sstreamset_itr->second.push();
+    // stream.push()
+    sstreams_itr->second.push();
 }
 
 ssize_t gcom::socket::recvfrom(void *buf, endpoint& from)
@@ -76,10 +78,10 @@ ssize_t gcom::socket::recvfrom(void *buf, endpoint& from)
     while (len != 0)
     {
         // rstream_set_itrを回す
-        //  // 見つけたらrstreamset_itr->get()
     }
 
-    // recv_stream.pop()
+    // stream.get()
+    // stream.pop()
 
     return len;
 }
@@ -89,54 +91,55 @@ void gcom::socket::add_group(endpoint& ep)
     group.insert(ep);
 }
 
-ssize_t gcom::socket::output_packet(uint32_t seq, uint32_t begin, uint32_t end, uint8_t flag, const void *payload, size_t len, endpoint& dest)
+ssize_t gcom::socket::output_packet(const struct header* hdr, const void *payload, size_t payload_len, endpoint& dest)
 {
     struct sockaddr_in addr;
     unsigned char buf[packet_size];
-    struct header *hdr;
-    uint32_t total;
+    uint32_t buf_len = 0, len;
 
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr(dest.ipaddr.c_str());
     addr.sin_port = htons(dest.port);
 
-    hdr = (struct header *)buf;
-    hdr->seq = seq;
-    hdr->head = begin;
-    hdr->tail = end;
-    hdr->flag = flag;
-    std::memcpy(hdr + 1, payload, len);
-    total = sizeof(struct header) + len;
+    memcpy(buf, hdr, sizeof(struct header));
+    buf_len += sizeof(struct header);
+    memcpy(buf + sizeof(struct header), payload, payload_len);
+    buf_len += payload_len;
 
-    len = ::sendto(sockfd, buf, total, 0, (struct sockaddr *)&(addr), sizeof(addr));
-    if (len < 0)
+    len = ::sendto(sockfd, buf, buf_len, 0, (struct sockaddr *)&(addr), sizeof(addr));
+    if (len != buf_len)
     {
         throw std::exception();
     }
 
-    fprintf(stderr, "output_packet(): len:%ld, seq:%d, begin:%d, end:%d, payload:%s ipaddr:%s, port:%d\n", len, seq, begin, end, (char *)payload, dest.ipaddr, dest.port);
+    fprintf(stderr, "output_packet(): len:%ld, payload:%ld\n", len, payload_len);
 
-    return len;
+    return payload_len;
 }
 
-size_t gcom::socket::input_packet(uint32_t *seq, uint32_t *begin, uint32_t *end, uint8_t *flag, void *payload)
+size_t gcom::socket::input_packet(struct header* hdr, void *payload)
 {
     struct sockaddr_in addr;
     socklen_t addr_len = sizeof(addr);
     unsigned char buf[packet_size];
     struct header *hdr;
-    ssize_t buf_len, payload_len;
+    ssize_t len, payload_len;
 
-    buf_len = ::recvfrom(sockfd, buf, packet_size, 0, (struct sockaddr *)&addr, &addr_len);
-    payload_len = buf_len - sizeof(struct header);
-    hdr = (struct header *)buf;
-    *seq = hdr->seq;
-    *begin = hdr->head;
-    *end = hdr->tail;
-    *flag = hdr->flag;
-    std::memcpy(payload, buf + sizeof(struct header), payload_len);
+    len = ::recvfrom(sockfd, buf, packet_size, 0, (struct sockaddr *)&addr, &addr_len);
+    if (len == -1) // error
+    {
+        throw std::exception();
+    }
+    else if (len < sizeof(struct header))
+    {
+        throw std::exception();
+    }
 
-    fprintf(stderr, "input_packet(): len:%ld, seq:%d, begin:%d, end:%d, payload:%s\n", payload_len, *seq, *begin, *end, (char *)payload);
+    memcpy(hdr, buf, sizeof(struct header));
+    payload_len = len - sizeof(struct header);
+    memcpy(payload, buf + sizeof(struct header), payload_len);
+
+    fprintf(stderr, "input_packet(): len:%ld, payload:%ld\n", len, payload_len);
 
     return payload_len;
 }
@@ -146,26 +149,44 @@ void gcom::socket::transmit_ready_packets()
     // stream
 }
 
+void gcom::socket::transmit_ack_packet()
+{
+
+}
+
+void gcom::socket::transmit_nack_packet()
+{
+
+}
+
 void gcom::socket::retransmit_packets(int streamid)
 {
-    // 
+    // stream.search_idx()
+    // stream.get()
+    // output_packet()
 }
 
 void gcom::socket::process_arriving_packet()
 {
     ssize_t len;
-    len = input_packet();
-    if () // data packet
+    unsigned char payload[payload_size];
+    struct header hdr;
+    len = input_packet(&hdr, payload);
+    if () // recv data packet
     {
+        // 必要ならstream.push_empty()
+        // stream.insert()
 
+        // if seq + len == tail -> transmit_ack()
+        // if prev.seq + prev.len != seq -> transmit_nack()
     }
-    else if () // nack packet
+    else if () // recv nack packet
     {
-
+        // stream.search_idx()
     }
-    else if () // ack packet
+    else if () // recv ack packet
     {
-
+        // stream.pop()
     }
 }
 
@@ -187,7 +208,7 @@ void gcom::socket::background()
                 {
                     process_arriving_packet();
                 }
-                else
+                else // timerfd
                 {
                     // data.fd == timer_fd;
                     for (;;)

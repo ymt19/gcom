@@ -8,66 +8,66 @@
 namespace gcom
 {
 
-class send_stream
+class stream
 {
 public:
-    send_stream(endpoint ep, int buffsize) : ep(ep), nextseq(1), buff(buffsize) {}
+    stream(int buffsize, int payload_size)
+        : nextseq(0), buffer(buffsize), payload_size(payload_size) {}
 
-    // データをパケットに分割して，buffに挿入
-    // 上書きにより削除されたデータをinfoから削除
-    // nextseqの修正
-    void push();
+    /**
+     * @brief データをパケットに分割してbuffに挿入（sender）
+     * @note
+     * 上書きにより削除されたデータをinfoから削除
+     * nextseqの修正
+     */
+    void gcom::stream::push_packets(unsigned char *data, int len);
 
-    // buffからデータを削除
-    void pop();
+    /**
+     * @brief buffの指定サイズ分の領域を確保（receiver）
+     */
+    void push_empty(int len);
+
+    /**
+     * @brief buffの指定indexにデータを挿入（receiver）
+     */
+    void insert_packet(unsigned char *data, int len, uint64_t seq, uint64_t head, uint64_t tail);
+
+    /**
+     * @brief buffからデータを削除（sender/receiver）
+     */
+    void pop_packets();
+
+    /**
+     * @brief buffからindexのデータを取得（sender/receiver）
+     */
+    void get_packet();
+
+    /**
+     * @brief seqからidxを検索（sender/receiver）
+     */
+    uint64_t search_idx(uint64_t seq);
 private:
+    class packet
+    {
+    public:
+        packet(uint64_t seq, uint64_t head, uint64_t tail, uint64_t idx, uint32_t len)
+            : seq(seq), head(head), tail(tail), idx(idx), len(len) {}
+
+        bool operator< (const packet& a) const { return seq < a.seq; }
+        bool operator> (const packet& a) const { return seq > a.seq; }
+
+        uint64_t seq;
+        uint64_t head;
+        uint64_t tail;
+        uint64_t idx;
+        uint32_t len;
+    };
+
+    const int payload_size;
     std::mutex mtx;
-    endpoint ep;
     int nextseq;
-    ring_buffer buff;
-    std::queue<queue_entry> info;
-};
-
-class recv_stream
-{
-public:
-    recv_stream(endpoint ep, int buffsize) : ep(ep), buff(buffsize) {}
-
-    // buffにデータ挿入
-    // 指定されたseqからindexを特定
-    void insert();
-
-    /* buffからデータを削除 */
-    void pop();
-
-    /* buffからデータ取得 */
-    std::string get();
-private:
-    // 必要ならinfoからデータ削除
-    bool allocate();
-
-    std::mutex mtx;
-    endpoint ep;
-    ring_buffer buff;
-    std::priority_queue<queue_entry, std::vector<queue_entry>, std::greater<queue_entry>> info;
-};
-
-class queue_entry
-{
-public:
-    queue_entry(uint64_t idx, uint32_t payload_len, uint64_t seq, uint32_t head, uint32_t tail, int src_id, int dest_id)
-        : idx(idx), payload_len(payload_len), seq(seq), head(head), tail(tail), src_id(src_id), dest_id(dest_id) {}
-
-    bool operator< (const queue_entry& a) const { return idx < a.idx; }
-    bool operator> (const queue_entry& a) const { return idx > a.idx; }
-
-    uint64_t idx;
-    uint32_t payload_len;
-    uint32_t seq;
-    uint32_t head;
-    uint32_t tail;
-    int src_id;    // send bufの場合-1
-    int dest_id;   // recv bufの場合-1
+    ring_buffer buffer;
+    std::priority_queue<packet, std::vector<packet>, std::greater<packet>> info;
 };
 
 } // namespace gcom
