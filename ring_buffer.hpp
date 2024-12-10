@@ -22,13 +22,18 @@ public:
     uint64_t push(unsigned char *data, uint64_t len);
 
     // Return new read index.
-    uint64_t pop(unsigned char *data, uint64_t len);
+    uint64_t pop(uint64_t len);
 
     // don't update write index.
     void set(uint64_t idx, unsigned char *data, uint64_t len);
 
     //
     void get(uint64_t idx, unsigned char *data, uint64_t len);
+
+    uint64_t get_write_idx()
+    {
+        return write_idx;
+    }
 
     uint64_t get_zombie_idx()
     {

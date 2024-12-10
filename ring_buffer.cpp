@@ -34,14 +34,9 @@ uint64_t gcom::ring_buffer::push(unsigned char *data, uint64_t len)
     return prev_write_idx;
 }
 
-uint64_t gcom::ring_buffer::pop(unsigned char *data, uint64_t len)
+uint64_t gcom::ring_buffer::pop(uint64_t len)
 {
-    std::string pop_str;
-    try
-    {
-        get(read_idx, data, len);
-    }
-    catch(const std::exception& e)
+    if (write_idx > read_idx + len)
     {
         throw std::exception();
     }
