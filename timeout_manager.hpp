@@ -11,7 +11,10 @@ namespace gcom
         timeout_manager();
         ~timeout_manager();
 
-        int get_fd();
+        int get_fd()
+        {
+            return tfd;
+        }
     private:
         int tfd;
     };

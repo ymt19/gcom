@@ -9,8 +9,3 @@ gcom::timeout_manager::~timeout_manager()
 {
     close(tfd);
 }
-
-int gcom::timeout_manager::get_fd()
-{
-    return tfd;
-}
