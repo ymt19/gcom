@@ -3,7 +3,7 @@
 #include "ring_buffer.hpp"
 #include "endpoint.hpp"
 #include <mutex>
-#include <queue>
+#include <map>
 
 namespace gcom
 {
@@ -11,8 +11,8 @@ namespace gcom
 class stream
 {
 public:
-    stream(int buffsize, int payload_size)
-        : nextseq(0), buffer(buffsize), payload_size(payload_size) {}
+    stream(int buffsize)
+        : buff(buffsize), next_idx(0) {}
 
     /**
      * @brief データをパケットに分割してbuffに挿入（sender）
@@ -20,54 +20,38 @@ public:
      * 上書きにより削除されたデータをinfoから削除
      * nextseqの修正
      */
-    void gcom::stream::push_packets(unsigned char *data, int len);
+    void push_packets(unsigned char *data, uint32_t len, uint32_t max_payload_size);
 
     /**
-     * @brief buffの指定サイズ分の領域を確保（receiver）
+     * @brief buffにデータを挿入（receiver）
      */
-    void push_empty(int len);
-
-    /**
-     * @brief buffの指定indexにデータを挿入（receiver）
-     */
-    void insert_packet(unsigned char *data, int len, uint64_t seq, uint64_t head, uint64_t tail);
+    void insert_packet(unsigned char *data, uint32_t len, uint32_t idx, uint32_t head_idx, uint32_t tail_idx);
 
     /**
      * @brief buffからデータを削除（sender/receiver）
      */
-    void pop_packets();
+    uint32_t pop_packets(unsigned char *data);
 
     /**
      * @brief buffからindexのデータを取得（sender/receiver）
      */
-    void get_packet();
-
-    /**
-     * @brief seqからidxを検索（sender/receiver）
-     */
-    uint64_t search_idx(uint64_t seq);
+    uint32_t get_packet(uint32_t idx, unsigned char *data, uint32_t *head_idx, uint32_t *tail_idx);
 private:
     class packet
     {
     public:
-        packet(uint64_t seq, uint64_t head, uint64_t tail, uint64_t idx, uint32_t len)
-            : seq(seq), head(head), tail(tail), idx(idx), len(len) {}
+        packet(uint32_t payload_size, uint32_t head_idx, uint32_t tail_idx)
+            : payload_size(payload_size), head_idx(head_idx), tail_idx(tail_idx) {}
 
-        bool operator< (const packet& a) const { return seq < a.seq; }
-        bool operator> (const packet& a) const { return seq > a.seq; }
-
-        uint64_t seq;
-        uint64_t head;
-        uint64_t tail;
-        uint64_t idx;
-        uint32_t len;
+        uint32_t payload_size;
+        uint32_t head_idx;
+        uint32_t tail_idx;
     };
 
-    const int payload_size;
     std::mutex mtx;
-    int nextseq;
-    ring_buffer buffer;
-    std::priority_queue<packet, std::vector<packet>, std::greater<packet>> info;
+    ring_buffer buff;
+    std::map<uint64_t, packet> info;    // idx : packet
+    uint32_t next_idx; // only receiver
 };
 
 } // namespace gcom

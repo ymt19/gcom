@@ -1,6 +1,7 @@
 #pragma once
 
 #include "stream.hpp"
+#include "timer.hpp"
 #include "endpoint.hpp"
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -11,7 +12,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <thread>
-#include <queue>
 #include <map>
 #include <set>
 #include <exception>
@@ -42,10 +42,10 @@ private:
 
     struct header
     {
-        uint32_t streamid;       // stream id
-        uint32_t this_seqid;     // seaquence number
-        uint32_t head_seqid;     // 
-        uint32_t tail_seqid;
+        uint32_t streamid;        // stream id
+        uint32_t idx;           // index
+        uint32_t head_idx;      // head index
+        uint32_t tail_idx;      // tail index
         uint8_t flag;
     };
     const int FLAG_NCK = 0x01;
@@ -63,6 +63,8 @@ private:
 
     void transmit_nack_packet();
 
+    void transmit_group_recovery_packet(int streamid, int seq);
+
     // 再送
     void retransmit_packets(int streamid);
 
@@ -75,13 +77,14 @@ private:
 
     int sockfd;
     int epollfd;
-    int timerfd;
+    std::map<int, timer> timers;
     std::atomic_flag flag; // lock: terminated, unlock: started
     std::thread bgthread;
-    std::map<int, stream> sstreams; // streamid : send_stream
-    std::map<int, stream>::iterator sstreams_itr;
-    std::map<int, stream> rstreams; // streamid : recv_stream
-    std::map<int, stream>::iterator rstreams_itr;
+    std::map<int, stream> ss; // {streamid, stream}
+    std::map<int, stream>::iterator ss_itr;
+    int next_streamid;
+    std::map<int, stream> rs; // streamid : stream
+    std::map<int, stream>::iterator rs_itr;
     std::set<endpoint> group;
 };
 

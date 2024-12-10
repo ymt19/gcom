@@ -1,6 +1,6 @@
 #include "socket.hpp"
 
-gcom::socket::socket(uint16_t port) : flag(ATOMIC_FLAG_INIT)
+gcom::socket::socket(uint16_t port) : flag(ATOMIC_FLAG_INIT), next_streamid(1)
 {
     struct sockaddr_in addr;
 
@@ -46,28 +46,46 @@ gcom::socket::~socket()
 
     ::close(epollfd);
     ::close(sockfd);
-    // close timerfd
 }
 
 void gcom::socket::sendto(const void *data, size_t len, endpoint& dest)
 {
-    if (sstreams.size() < max_streams) // create new stream
+    if (ss.size() < max_streams)
     {
-        int id;
-        auto ret = sstreams.insert(std::make_pair(id, stream(dest, buffer_size)));
-        sstreams_itr = ret.first;
+        // create new stream
+        {
+            auto ret = ss.emplace(next_streamid, stream(buffer_size));
 
-        // create and init new timerfd
+            if (!ret.second)
+            {
+                throw std::exception();
+            }
 
+            ss_itr = ret.first;
+        }
+
+        // create new timerfd
+        {
+            auto ret = timers.emplace(next_streamid, timer());
+
+            if (!ret.second)
+            {
+                throw std::exception();
+            }
+
+            register_epoll_event(ret.first->second.get_fd());
+        }
+    }
+    else
+    {
+        ss_itr++;
+        if (ss_itr == ss.end())
+        {
+            ss_itr = ss.begin();
+        }
     }
 
-    if (sstreams_itr == nullptr)
-    {
-        sstreams_itr = sstreams.begin();
-    }
-
-    // stream.push()
-    sstreams_itr->second.push();
+    ss_itr->second.push_packets((unsigned char *)data, len, payload_size);
 }
 
 ssize_t gcom::socket::recvfrom(void *buf, endpoint& from)
@@ -75,13 +93,15 @@ ssize_t gcom::socket::recvfrom(void *buf, endpoint& from)
     uint32_t len = 0;
 
     // recv stream.get()
-    while (len != 0)
+    do
     {
-        // rstream_set_itrを回す
-    }
-
-    // stream.get()
-    // stream.pop()
+        ss_itr++;
+        if (ss_itr == ss.end())
+        {
+            ss_itr = ss.begin();
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    } while ((len =  ss_itr->second.pop_packets((unsigned char*)buf)) == 0);
 
     return len;
 }
@@ -122,7 +142,6 @@ size_t gcom::socket::input_packet(struct header* hdr, void *payload)
     struct sockaddr_in addr;
     socklen_t addr_len = sizeof(addr);
     unsigned char buf[packet_size];
-    struct header *hdr;
     ssize_t len, payload_len;
 
     len = ::recvfrom(sockfd, buf, packet_size, 0, (struct sockaddr *)&addr, &addr_len);
@@ -146,23 +165,29 @@ size_t gcom::socket::input_packet(struct header* hdr, void *payload)
 
 void gcom::socket::transmit_ready_packets()
 {
-    // stream
+    // while stream.get_packte()
+    // output_packet()
 }
 
 void gcom::socket::transmit_ack_packet()
 {
-
+    // output_packet()
 }
 
 void gcom::socket::transmit_nack_packet()
 {
+    // output_packet()
+}
 
+void gcom::socket::transmit_group_recovery_packet(int streamid, int seq)
+{
+    // stream.get_packet()
+    // output_packet()
 }
 
 void gcom::socket::retransmit_packets(int streamid)
 {
-    // stream.search_idx()
-    // stream.get()
+    // stream.get_packet()
     // output_packet()
 }
 
@@ -172,22 +197,28 @@ void gcom::socket::process_arriving_packet()
     unsigned char payload[payload_size];
     struct header hdr;
     len = input_packet(&hdr, payload);
-    if () // recv data packet
-    {
-        // 必要ならstream.push_empty()
-        // stream.insert()
+    // if () // recv data packet
+    // {
+    //     // 必要ならstream.push_empty()
+    //     // stream.insert()
 
-        // if seq + len == tail -> transmit_ack()
-        // if prev.seq + prev.len != seq -> transmit_nack()
-    }
-    else if () // recv nack packet
-    {
-        // stream.search_idx()
-    }
-    else if () // recv ack packet
-    {
-        // stream.pop()
-    }
+    //     if () // this_o + len == tail_o
+    //     {
+    //         transmit_ack_packet();
+    //     }
+    //     else if () // if prev.seq + 1 != seq
+    //     {
+    //         transmit_nack_packet();
+    //     }
+    // }
+    // else if () // recv nack packet
+    // {
+    //     transmit_group_recovery_packet();
+    // }
+    // else if () // recv ack packet
+    // {
+    //     sstream.at(hdr.stream).pop_packets();
+    // }
 }
 
 void gcom::socket::background()
@@ -208,13 +239,15 @@ void gcom::socket::background()
                 {
                     process_arriving_packet();
                 }
-                else // timerfd
+                else
                 {
-                    // data.fd == timer_fd;
-                    for (;;)
+                    for (auto itr = timers.begin(); itr != timers.end(); itr++)
                     {
-                        retransmit_packets();
-                        continue;
+                        if (events[i].data.fd == itr->second.get_fd())
+                        {
+                            retransmit_packets(itr->first);
+                            break;
+                        }
                     }
                 }
             }
