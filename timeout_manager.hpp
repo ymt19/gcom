@@ -5,11 +5,11 @@
 
 namespace gcom
 {
-    class timer
+    class timeout_manager
     {
     public:
-        timer();
-        ~timer();
+        timeout_manager();
+        ~timeout_manager();
 
         int get_fd();
     private:

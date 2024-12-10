@@ -1,16 +1,16 @@
-#include "timer.hpp"
+#include "timeout_manager.hpp"
 
-gcom::timer::timer()
+gcom::timeout_manager::timeout_manager()
 {
     tfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
 }
 
-gcom::timer::~timer()
+gcom::timeout_manager::~timeout_manager()
 {
     close(tfd);
 }
 
-int gcom::timer::get_fd()
+int gcom::timeout_manager::get_fd()
 {
     return tfd;
 }
