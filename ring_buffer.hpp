@@ -37,6 +37,11 @@ public:
         return write_idx;
     }
 
+    uint64_t get_read_idx()
+    {
+        return read_idx;
+    }
+
     uint64_t get_zombie_idx()
     {
         return zombie_idx;
