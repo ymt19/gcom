@@ -21,6 +21,8 @@ public:
     // Returns prev write index. 
     uint64_t push(unsigned char *data, uint64_t len);
 
+    uint64_t push_empty(uint64_t len);
+
     // Return new read index.
     uint64_t pop(uint64_t len);
 

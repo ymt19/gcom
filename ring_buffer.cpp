@@ -34,9 +34,30 @@ uint64_t gcom::ring_buffer::push(unsigned char *data, uint64_t len)
     return prev_write_idx;
 }
 
+uint64_t gcom::ring_buffer::push_empty(uint64_t len)
+{
+    uint64_t prev_write_idx;
+
+    if (len > size - (write_idx - read_idx))
+    {
+        throw std::exception();
+    }
+    
+    prev_write_idx = write_idx;
+    write_idx += len;
+
+    if (write_idx - zombie_idx > size)
+    {
+        // calc zombie index
+        zombie_idx = write_idx - size;
+    }
+
+    return prev_write_idx;
+}
+
 uint64_t gcom::ring_buffer::pop(uint64_t len)
 {
-    if (write_idx > read_idx + len)
+    if (len > write_idx - read_idx)
     {
         throw std::exception();
     }
