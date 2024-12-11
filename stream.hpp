@@ -18,6 +18,7 @@ namespace gcom
          */
         uint32_t get_packet(uint32_t idx, unsigned char *payload, uint32_t *tail_idx);
 
+    protected:
         class packet_entry
         {
         public:
