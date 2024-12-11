@@ -1,7 +1,8 @@
 #pragma once
 
-#include "stream.hpp"
-#include "timer.hpp"
+#include "stream_send.hpp"
+#include "stream_recv.hpp"
+#include "timeout_manager.hpp"
 #include "endpoint.hpp"
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -44,7 +45,6 @@ private:
     {
         uint32_t streamid;        // stream id
         uint32_t idx;           // index
-        uint32_t head_idx;      // head index
         uint32_t tail_idx;      // tail index
         uint8_t flag;
     };
@@ -77,14 +77,14 @@ private:
 
     int sockfd;
     int epollfd;
-    std::map<int, timer> timers;
+    std::map<int, timeout_manager> toms; // {streamid, timeout_manager}
     std::atomic_flag flag; // lock: terminated, unlock: started
     std::thread bgthread;
-    std::map<int, stream> ss; // {streamid, stream}
-    std::map<int, stream>::iterator ss_itr;
-    int next_streamid;
-    std::map<int, stream> rs; // streamid : stream
-    std::map<int, stream>::iterator rs_itr;
+    int reserved_ssid;
+    std::map<int, stream_send> ss; // {streamid, stream}
+    std::map<int, stream_send>::iterator ss_itr;
+    std::map<int, stream_recv> sr; // {streamid : stream}
+    std::map<int, stream_recv>::iterator sr_itr;
     std::set<endpoint> group;
 };
 

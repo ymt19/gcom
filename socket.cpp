@@ -1,6 +1,7 @@
 #include "socket.hpp"
 
-gcom::socket::socket(uint16_t port) : flag(ATOMIC_FLAG_INIT), next_streamid(1)
+gcom::socket::socket(uint16_t port)
+    : flag(ATOMIC_FLAG_INIT), reserved_ssid(0)
 {
     struct sockaddr_in addr;
 
@@ -52,9 +53,10 @@ void gcom::socket::sendto(const void *data, size_t len, endpoint& dest)
 {
     if (ss.size() < max_streams)
     {
+        reserved_ssid++;
         // create new stream
         {
-            auto ret = ss.emplace(next_streamid, stream(buffer_size));
+            auto ret = ss.emplace(reserved_ssid, stream(buffer_size));
 
             if (!ret.second)
             {
@@ -66,7 +68,7 @@ void gcom::socket::sendto(const void *data, size_t len, endpoint& dest)
 
         // create new timerfd
         {
-            auto ret = timers.emplace(next_streamid, timer());
+            auto ret = toms.emplace(reserved_ssid, timeout_manager());
 
             if (!ret.second)
             {
@@ -92,16 +94,21 @@ ssize_t gcom::socket::recvfrom(void *buf, endpoint& from)
 {
     uint32_t len = 0;
 
+    if (sr_itr == nullptr)
+    {
+
+    }
+
     // recv stream.get()
     do
     {
-        ss_itr++;
-        if (ss_itr == ss.end())
+        rs_itr++;
+        if (rs_itr == rs.end())
         {
-            ss_itr = ss.begin();
+            rs_itr = rs.begin();
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    } while ((len =  ss_itr->second.pop_packets((unsigned char*)buf)) == 0);
+    } while ((len =  rs_itr->second.pop_packets((unsigned char*)buf)) == 0);
 
     return len;
 }
@@ -197,28 +204,28 @@ void gcom::socket::process_arriving_packet()
     unsigned char payload[payload_size];
     struct header hdr;
     len = input_packet(&hdr, payload);
-    // if () // recv data packet
-    // {
-    //     // 必要ならstream.push_empty()
-    //     // stream.insert()
+    if () // recv data packet
+    {
+        // 必要ならstream.push_empty()
+        // stream.insert()
 
-    //     if () // this_o + len == tail_o
-    //     {
-    //         transmit_ack_packet();
-    //     }
-    //     else if () // if prev.seq + 1 != seq
-    //     {
-    //         transmit_nack_packet();
-    //     }
-    // }
-    // else if () // recv nack packet
-    // {
-    //     transmit_group_recovery_packet();
-    // }
-    // else if () // recv ack packet
-    // {
-    //     sstream.at(hdr.stream).pop_packets();
-    // }
+        if () // this_o + len == tail_o
+        {
+            transmit_ack_packet();
+        }
+        else if () // if prev.seq + 1 != seq
+        {
+            transmit_nack_packet();
+        }
+    }
+    else if () // recv nack packet
+    {
+        transmit_group_recovery_packet();
+    }
+    else if () // recv ack packet
+    {
+        ss.at(hdr.streamid).pop_packets(hdr.idx);
+    }
 }
 
 void gcom::socket::background()
@@ -241,7 +248,7 @@ void gcom::socket::background()
                 }
                 else
                 {
-                    for (auto itr = timers.begin(); itr != timers.end(); itr++)
+                    for (auto itr = toms.begin(); itr != toms.end(); itr++)
                     {
                         if (events[i].data.fd == itr->second.get_fd())
                         {
