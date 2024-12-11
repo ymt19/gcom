@@ -3,11 +3,6 @@
 uint32_t gcom::stream::get_packet(uint32_t idx, unsigned char *payload, uint32_t *tail_idx)
 {
     std::lock_guard<std::mutex> lock(mtx);
-
-    if (info.empty())
-    {
-        throw std::exception();
-    }
     
     auto itr = info.find(idx);
     if (itr == info.end())
