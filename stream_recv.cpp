@@ -12,6 +12,8 @@ void gcom::stream_recv::insert_packet(unsigned char *payload, uint32_t len, uint
     buff.set(idx, payload, len);
     info.emplace(idx, packet_entry(len, tail_idx));
 
+    register_next_idx();
+
     // zombie index未満のidxに格納されるパケット情報をinfoから削除
     auto itr = info.begin();
     while (itr != info.end())
@@ -24,18 +26,18 @@ void gcom::stream_recv::insert_packet(unsigned char *payload, uint32_t len, uint
     }
 }
 
-uint32_t gcom::stream_recv::pop_packets(unsigned char *data)
+uint32_t gcom::stream_recv::try_pop_packets(unsigned char *data)
 {
-    uint64_t read_idx, top_tail_idx;
+    uint64_t read_idx, tail_idx;
 
     std::lock_guard<std::mutex> lock(mtx);
 
     read_idx = buff.get_read_idx();
-    top_tail_idx = info.at(read_idx).tail_idx;
+    tail_idx = info.at(read_idx).tail_idx;
 
-    if (confirmed_idx >= top_tail_idx)
+    if (next_idx  > tail_idx)
     {
-        uint32_t len = top_tail_idx - read_idx;
+        uint32_t len = tail_idx - read_idx;
         buff.get(read_idx, data, len);
         buff.pop(len);
         return len;
@@ -46,21 +48,18 @@ uint32_t gcom::stream_recv::pop_packets(unsigned char *data)
     }
 }
 
-void gcom::stream_recv::register_confirmed_idx(uint32_t idx, )
+void gcom::stream_recv::register_next_idx()
 {
-    std::lock_guard<std::mutex> lock(mtx);
-
-    // calculate new confirmed_idx
-    auto itr = info.find(idx);
+    auto itr = info.find(next_idx);
     while (itr != info.end())
     {
-        if (itr->second.is_confirmed)
+        if (next_idx == itr->first)
         {
-
+            next_idx += itr->second.payload_size;
         }
         else
         {
-
+            break;
         }
     }
 }

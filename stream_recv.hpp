@@ -16,16 +16,15 @@ namespace gcom
         /**
          * @brief buffからconfirmed packetsを削除（sender/receiver）
          */
-        uint32_t pop_packets(unsigned char *data);
+        uint32_t try_pop_packets(unsigned char *data);
 
     private:
         /**
-         * @brief 確認できたidxを登録する（sender/receiver）
-         * insert_packet()で呼出
+         * @brief 確認できたidxを登録する
          */
-        void register_confirmed_idx(uint32_t idx);
+        void register_next_idx();
 
-        ssize_t confirmed_idx; // このindexまでのデータは連続して格納されている
+        uint32_t next_idx; // (next_idx - 1)までのデータは連続してバッファに格納
     };
 
 } // namespace gcom
