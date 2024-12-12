@@ -31,24 +31,17 @@ void gcom::stream_send::push_packets(unsigned char *data, uint32_t len, uint32_t
     }
 }
 
-uint32_t gcom::stream_send::pop_packets(uint32_t idx)
+void gcom::stream_send::pop_packets(uint32_t tail_idx)
 {
-    uint64_t read_idx, top_tail_idx;
+    uint64_t read_idx;
 
     std::lock_guard<std::mutex> lock(mtx);
 
     read_idx = buff.get_read_idx();
-    top_tail_idx = info.at(read_idx).tail_idx;
 
-    if (confirmed_idx >= top_tail_idx)
+    if (read_idx < tail_idx)
     {
-        uint32_t len = top_tail_idx - read_idx;
-        buff.get(read_idx, data, len);
+        uint32_t len = tail_idx - read_idx;
         buff.pop(len);
-        return len;
-    }
-    else
-    {
-        return 0;
     }
 }

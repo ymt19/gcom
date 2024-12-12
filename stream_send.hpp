@@ -14,9 +14,9 @@ namespace gcom
         void push_packets(unsigned char *data, uint32_t len, uint32_t max_payload_size);
 
         /**
-         * @brief idxまでのデータをbuffから削除
+         * @brief tail_idxまでのデータをbuffから削除
          */
-        uint32_t pop_packets(uint32_t idx);
+        void pop_packets(uint32_t tail_idx);
     };
 
 } // namespace gcom
